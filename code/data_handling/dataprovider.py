@@ -1,13 +1,11 @@
-import os
-import argparse
-import numpy as np
-from collections import Counter
+'''
+Provide processed data ready for consumption by tensorflow model
+Return data always as numpy array
+'''
 
-# Global Constants
-DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-DATA_DIR = os.path.join(DIR, 'data')
-FILE_BASE = 'sentences.'
-PARSER = argparse.ArgumentParser(description='LSTM Implementation in Tensorflow')
+import numpy as np
+import os
+from collections import Counter
 
 def clean_line(line_words):
     line_clean = np.empty(30, dtype="<U50")
@@ -25,18 +23,24 @@ def build_vocabulary(data_train):
     counts = Counter(word_list)
     relevant_counts = counts.most_common(20000)
     return [a for (a, b) in relevant_counts]
-    
 
-def main():
+def process_file(file):
     data_train_list = []
-    with open(os.path.join(DATA_DIR, FILE_BASE + 'train')) as file:
-        for line in file.readlines():
+    for line in file.readlines():
             line_words = line.split()
             if len(line_words) < 29:
                 data_train_list.append(clean_line(line_words))
         file.close()
-    data_train = np.array(data_train_list)
-    vocab = build_vocabulary(data_train)
+    return np.array(data_train_list)
 
-if __name__ == '__main__':
-    main()
+def get_training_data(DATA_DIR, FILE_BASE):
+    with open(os.path.join(DATA_DIR, FILE_BASE + 'train')) as file:
+        return process_file(file)
+
+def get_evaluation_data(DATA_DIR, FILE_BASE):
+    with open(os.path.join(DATA_DIR, FILE_BASE + 'eval')) as file:
+        return process_file(file)
+
+def get_continuation_data(DATA_DIR, FILE_BASE):
+    with open(os.path.join(DATA_DIR, FILE_BASE + 'continuation')) as file:
+        return process_file(file)
