@@ -27,10 +27,10 @@ def build_vocabulary(data_train):
 def process_file(file):
     data_train_list = []
     for line in file.readlines():
-            line_words = line.split()
-            if len(line_words) < 29:
-                data_train_list.append(clean_line(line_words))
-        file.close()
+        line_words = line.split()
+        if len(line_words) < 29:
+            data_train_list.append(clean_line(line_words))
+    file.close()
     return np.array(data_train_list)
 
 def get_data(DATA_DIR, FILE_BASE, dataset='train'):
