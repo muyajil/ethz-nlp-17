@@ -7,6 +7,8 @@ import numpy as np
 import os
 from collections import Counter
 
+# TODO: batching
+
 def clean_line(line_words):
     line_clean = np.empty(30, dtype="<U50")
     line_clean[0] = '<bos>'
@@ -22,7 +24,25 @@ def build_vocabulary(data_train):
     word_list = data_train.ravel()
     counts = Counter(word_list)
     relevant_counts = counts.most_common(20000)
-    return [a for (a, b) in relevant_counts]
+    word_ids_list = [(relevant_counts[i][0], i) for i in range(len(relevant_counts))]
+    word_dict = dict(word_ids_list)
+    return word_dict
+
+def build_targets(data_train, vocab):
+    # TODO: somehow build one-hot vectors
+    targets = np.empty((len(data_train), 30, len(vocab)+1), dtype=float) # how the fuck should this work??
+    for i in range(len(data_train)):
+        sentence = data_train[i]
+        sentence_matrix = np.empty((30, len(vocab)+1), dtype=float)
+        for word in sentence:
+            word_1hot = np.empty(len(vocab)+1, dtype=float)
+            if word in vocab.keys():
+                word_1hot[vocab[word]] = 1.0
+            else:
+                word_1hot[len(vocab)] = 1.0
+            sentence_matrix.append(word_1hot)
+        targets[i] = sentence_matrix
+    return targets
 
 def process_file(file):
     data_train_list = []
@@ -35,4 +55,7 @@ def process_file(file):
 
 def get_data(DATA_DIR, FILE_BASE, dataset='train'):
     with open(os.path.join(DATA_DIR, FILE_BASE + dataset)) as file:
-        return process_file(file)
+        data_train = process_file(file)
+        vocab = build_vocabulary(data_train)
+        targets = build_targets(data_train, vocab)
+        return data_train, vocab, targets

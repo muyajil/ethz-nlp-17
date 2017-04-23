@@ -14,9 +14,8 @@ FILE_BASE = 'sentences.'
 PARSER = argparse.ArgumentParser(description='LSTM Implementation in Tensorflow')
 
 def main():
-    data_train = dataprovider.get_data(DATA_DIR, FILE_BASE, 'train')
-    vocab = dataprovider.build_vocabulary(data_train)
-    sess = modelprovider.get_lstm_model()
+    data_train, vocab, targets = dataprovider.get_data(DATA_DIR, FILE_BASE, 'train')
+    # TODO: sess.run
 
 if __name__ == '__main__':
     main()
