@@ -55,15 +55,25 @@ def read_trim_pad(filename, sentence_length=30):
 
     return sentences
 
+def pipeline(filename):
+    data = read_trim_pad(path)
+    data = unk_and_int(data, 20000)
+    return data
+
+outpath = '/tmp/nlu-project-data.pickle'
+def iter(path=outpath):
+    with open(outpath, 'br') as f:
+        sentences = pickle.load(f)
+        for s in sentences:
+            yield s
 
 def main():
+    # TODO help / progress bar
     path = sys.argv[1]
     path = os.path.expanduser(path)
 
-    data = read_trim_pad(path)
-    data = unk_and_int(data, 20000)
+    data = pipeline(path)
 
-    outpath = '/tmp/nlu-project-data.pickle'
     print('writing to %s' % outpath)
     with open (outpath, 'wb') as f:
         pickle.dump(data, f)
