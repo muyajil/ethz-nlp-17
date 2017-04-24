@@ -1,6 +1,8 @@
 import nltk
 from nltk.tokenize import word_tokenize
 import pickle
+import sys
+import os
 
 BOS = "<bos>"
 EOS = "<eos>"
@@ -23,7 +25,7 @@ def cut_and_pad_sentence(list_of_tokens, length):
 def flatten(l):
     return [item for sublist in l for item in sublist]
 
-def replace_uncommon_tokens(sentences, most_common_k):
+def unk_and_int(sentences, most_common_k):
     all_words = flatten(sentences)
     topk = nltk.FreqDist(all_words).most_common(most_common_k)
     topk_list = [word for (word,count) in topk]
@@ -55,12 +57,16 @@ def read_trim_pad(filename, sentence_length=30):
 
 
 def main():
-    #data = read_trim_pad("/Users/gideon/data/nlu/Training_Shuffled_Dataset.txt")
-    data = read_trim_pad("/Users/gideon/data/nlu/small_training.txt")
-    data = replace_uncommon_tokens(data, 20000)
+    path = sys.argv[1]
+    path = os.path.expanduser(path)
 
-    # with open ("/tmp/nlu-project-data.pickle", 'wb') as f:
-    #     pickle.dump(data, f)
+    data = read_trim_pad(path)
+    data = unk_and_int(data, 20000)
+
+    outpath = '/tmp/nlu-project-data.pickle'
+    print('writing to %s' % outpath)
+    with open (outpath, 'wb') as f:
+        pickle.dump(data, f)
 
 if __name__ == "__main__":
     main()
