@@ -6,7 +6,7 @@ import numpy as np
 state_size = 512
 embed_dim = 100
 vocab_size = 20000
-vocab_size+=2 # for UNK
+vocab_size+=2 # for UNK TODO
 sentence_length = 30
 batch_size = 64
 
@@ -52,16 +52,19 @@ def lstm_train(xinput):
         logits = tf.matmul(output, softmax_w) + softmax_b
         loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y)
 
-    # TODO mean(loss)
-    return loss
+    return tf.reduce_mean(loss)
 
+
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.5)
 with tf.Session() as sess:
     xinput_placeholder = tf.placeholder(tf.int64, [None, sentence_length])
     lstm_loss = lstm_train(xinput_placeholder)
+    train = optimizer.minimize(lstm_loss)
 
     init = tf.global_variables_initializer()
     sess.run(init)
 
     for n_batch, batch in preprocess.batches(batch_size):
-        print('batch num: %d' % n_batch)
-        print(sess.run(lstm_loss, feed_dict = {xinput_placeholder: np.array(batch)}))
+        _, loss = sess.run([train, lstm_loss], feed_dict = {xinput_placeholder: np.array(batch)})
+
+        print('batch num: %d\tloss: %.2f' % (n_batch, loss))
