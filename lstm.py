@@ -7,7 +7,7 @@ state_size = 10
 embed_dim = 100
 vocab_size = 20000
 sentence_length = 30
-batch_size = 42
+batch_size = 32
 
 memory_state = tf.zeros([batch_size, state_size])
 hidden_state = tf.zeros([batch_size, state_size])
