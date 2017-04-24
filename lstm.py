@@ -37,19 +37,12 @@ batch_size = 1
 
 #     lstm(batch, embedding, tf.get_variable('H', [batch_size, state_size]), Wf, Uf, bf)
 
-
+state = tf.zeros([batch_size, state_size])
 init = tf.global_variables_initializer()
 lstm = tf.contrib.rnn.BasicLSTMCell(state_size)
 embedding = tf.get_variable('embedding', [vocab_size, embed_dim])
-
-tf.placeholder()
-
-c,h = lstm(v, state)
-
 with tf.Session() as sess:
     sess.run(init)
-
-    state = tf.zeros([batch_size, state_size])
 
     for batch in islice(preprocess.iter(), 10):
 
@@ -59,4 +52,4 @@ with tf.Session() as sess:
 
         v = wordvectors[:,0,:]
 
-
+        lstm(v, state)
