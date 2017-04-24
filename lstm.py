@@ -44,12 +44,9 @@ embedding = tf.get_variable('embedding', [vocab_size, embed_dim])
 with tf.Session() as sess:
     sess.run(init)
 
-    for batch in islice(preprocess.iter(), 10):
+    batch = list(islice(preprocess.iter(), 1))
+    wordvectors = tf.nn.embedding_lookup(embedding, batch)
 
-        batch = np.array([batch])
+    v = wordvectors[:,0,:]
 
-        wordvectors = tf.nn.embedding_lookup(embedding, batch)
-
-        v = wordvectors[:,0,:]
-
-        lstm(v, state)
+    lstm(v, state)
