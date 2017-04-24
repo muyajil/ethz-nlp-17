@@ -7,46 +7,22 @@ state_size = 10
 embed_dim = 100
 vocab_size = 20000
 sentence_length = 30
-batch_size = 1
+batch_size = 42
 
-# h_cell = tf.contrib.rnn.BasicRNNCell(state_size)
-
-# Wf = tf.get_variable('Wf', [state_size, embed_dim])
-# Uf = tf.get_variable('Uf', [42, state_size]) # TODO
-# bf = tf.get_variable('bf', [state_size])
-
-# def lstm(batch, embedding, H, Wf, Uf, bf):
-#     wordvectors = tf.nn.embedding_lookup(embedding, batch)
-
-#     for i in range(sentence_length-1):
-#         curr_word = wordvectors[:,i-1,:]
-#         ft = tf.matmul(Wf, tf.transpose(curr_word))
-#         ft = tf.transpose(ft)
-#         print(ft)
-#         ft = tf.matmul(Wf, curr_word) + tf.matmul(Uf, tf.transpose(H)) + bf
-
-# sentences = preprocess.iter()
-    
-# init = tf.global_variables_initializer()
-# with tf.Session() as sess:
-#     sess.run(init)
-    
-#     embedding = tf.get_variable('embedding', [vocab_size, embed_dim])
-
-#     batch = list(islice(sentences, batch_size))
-
-#     lstm(batch, embedding, tf.get_variable('H', [batch_size, state_size]), Wf, Uf, bf)
-
-state = tf.zeros([batch_size, state_size])
+memory_state = tf.zeros([batch_size, state_size])
+hidden_state = tf.zeros([batch_size, state_size])
 init = tf.global_variables_initializer()
 lstm = tf.contrib.rnn.BasicLSTMCell(state_size)
 embedding = tf.get_variable('embedding', [vocab_size, embed_dim])
 with tf.Session() as sess:
     sess.run(init)
 
-    batch = list(islice(preprocess.iter(), 1))
+    batch = list(islice(preprocess.iter(), batch_size))
     wordvectors = tf.nn.embedding_lookup(embedding, batch)
 
     v = wordvectors[:,0,:]
+    print('input', v)
 
-    lstm(v, state)
+    output, state = lstm(v, (memory_state, hidden_state))
+    print(output)
+    print(state)
