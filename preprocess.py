@@ -3,6 +3,7 @@ from nltk.tokenize import word_tokenize
 import pickle
 import sys
 import os
+from itertools import islice
 
 BOS = "<bos>"
 EOS = "<eos>"
@@ -66,6 +67,20 @@ def iter(path=outpath):
         sentences = pickle.load(f)
         for s in sentences:
             yield s
+
+def batches(batch_size, path=outpath):
+    sentences = iter(path)
+
+    counter = 0
+    while True:
+        batch = islice(sentences, batch_size*counter, batch_size*(counter+1))
+        batch = list(batch)
+        if batch == []:
+            return
+        
+        yield counter, batch
+        counter += 1
+
 
 def main():
     # TODO help / progress bar

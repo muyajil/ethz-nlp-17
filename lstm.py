@@ -17,12 +17,13 @@ embedding = tf.get_variable('embedding', [vocab_size, embed_dim])
 with tf.Session() as sess:
     sess.run(init)
 
-    batch = list(islice(preprocess.iter(), batch_size))
-    wordvectors = tf.nn.embedding_lookup(embedding, batch)
+    for n_batch, batch in preprocess.batches(batch_size):
+        print('batch num: %d' % n_batch)
+        wordvectors = tf.nn.embedding_lookup(embedding, batch)
 
-    v = wordvectors[:,0,:]
-    print('input', v)
-
-    output, state = lstm(v, (memory_state, hidden_state))
-    print(output)
-    print(state)
+        for i in range(sentence_length-1):
+            if i > 0:
+                tf.get_variable_scope().reuse_variables()
+                
+            v = wordvectors[:,i,:]
+            output, state = lstm(v, (memory_state, hidden_state))
