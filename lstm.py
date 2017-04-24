@@ -6,6 +6,7 @@ import numpy as np
 state_size = 512
 embed_dim = 100
 vocab_size = 20000
+vocab_size+=2 # for UNK
 sentence_length = 30
 batch_size = 64
 
@@ -61,8 +62,6 @@ with tf.Session() as sess:
     init = tf.global_variables_initializer()
     sess.run(init)
 
-
     for n_batch, batch in preprocess.batches(batch_size):
         print('batch num: %d' % n_batch)
-
-        sess.run(lstm_loss, feed_dict = {xinput_placeholder: np.array(batch)})
+        print(sess.run(lstm_loss, feed_dict = {xinput_placeholder: np.array(batch)}))
