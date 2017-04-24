@@ -9,6 +9,7 @@ vocab_size = 20000
 vocab_size+=2 # for UNK TODO
 sentence_length = 30
 batch_size = 64
+epochs = 1
 
 def _get_variable(name, shape, weight_decay=None):
     '''
@@ -32,7 +33,7 @@ def get_fresh_state():
 def lstm_train(xinput):
     lstm = tf.contrib.rnn.BasicLSTMCell(state_size)
 
-    with tf.variable_scope('foobar'):
+    with tf.variable_scope('foobar'): # TODO this is stupid
         softmax_w = _get_variable('softmax_w', [state_size, vocab_size])
         softmax_b = _get_variable('softmax_b', [vocab_size])
         embedding = _get_variable('embedding', [vocab_size, embed_dim])
@@ -54,7 +55,6 @@ def lstm_train(xinput):
 
     return tf.reduce_mean(loss)
 
-
 optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.5)
 with tf.Session() as sess:
     xinput_placeholder = tf.placeholder(tf.int64, [None, sentence_length])
@@ -64,7 +64,9 @@ with tf.Session() as sess:
     init = tf.global_variables_initializer()
     sess.run(init)
 
-    for n_batch, batch in preprocess.batches(batch_size):
-        _, loss = sess.run([train, lstm_loss], feed_dict = {xinput_placeholder: np.array(batch)})
+    for i in range(epochs):
+        # TODO shuffle between epochs?
+        for n_batch, batch in preprocess.batches(batch_size):
+            _, loss = sess.run([train, lstm_loss], feed_dict = {xinput_placeholder: np.array(batch)})
 
-        print('batch num: %d\tloss: %.2f' % (n_batch, loss))
+            print('batch num: %d\tloss: %.2f' % (n_batch, loss))
