@@ -5,7 +5,7 @@ Get data and models and train them
 import os
 import argparse
 from data import NlpData
-from models import NlpModel
+# from models import NlpModel
 
 # Global Constants
 DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,13 +14,13 @@ PARSER = argparse.ArgumentParser(description='LSTM Implementation in Tensorflow'
 def main(args):
     data_train = NlpData(os.path.join(DIR, args.data_dir), args.file_name, args.vocab_size, args.seq_length)
     batch = data_train.get_next_batch(args.batch_size)
-    model = NlpModel(
-        args.batch_size, 
-        args.seq_length, 
-        args.embedding_size, 
-        args.hidden_state_size,
-        args.vocab_size,
-        args.summaries_dir)
+    # model = NlpModel(
+    #     args.batch_size, 
+    #     args.seq_length, 
+    #     args.embedding_size, 
+    #     args.hidden_state_size,
+    #     args.vocab_size,
+    #     args.summaries_dir)
     # TODO: Train model
     # TODO: Serialize Data for Tensorboard
     # model.session.run() to access the tf.session variable
