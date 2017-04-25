@@ -43,6 +43,10 @@ class NlpModel:
         #       But after that it's easy, just launch tensorboard and point it to the summaries_dir
         final_state = state
     
-    def save_model():
-        # TODO: save the trained model to disk
-        return
+    def save_model(model_path):
+        saver = tf.train.Saver()
+        saver.save(self.session, model_path)
+    
+    def load_model(model_path):
+        saver = tf.train.Saver()
+        saver.restore(self.session, model_path)
