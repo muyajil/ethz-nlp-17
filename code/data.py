@@ -59,8 +59,15 @@ class NlpData:
         self.data = np.array(data_list)
     
     def generate_data_only_ids():
-        # TODO: Replace all words with their ids from vocab
-        return None
+        if self.data is None or self.vocab is None:
+            raise InvalidOperationException("The data needs to initialized first")
+        temp_data = []
+        for sentence in self.data:
+            sentence = []
+            for word in sentence:
+                sentence.append(self.vocab[word])
+            temp_data.append(np.array(sentence))
+        self.data_only_ids = np.array(temp_data)
 
     def generate_submission():
         # TODO: generate the submission file
@@ -70,4 +77,4 @@ class NlpData:
         with open(os.path.join(data_dir, file_name)) as file:
             self.process_file(file)
             self.build_vocabulary(vocab_size)
-            #self.data_only_ids = generate_data_only_ids()
+            self.generate_data_only_ids()
