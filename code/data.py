@@ -52,7 +52,7 @@ class NlpData:
 
     def __process_file(self, file, seq_length):
         data_list = []
-        for line in file.readlines()[:256]:
+        for line in file.readlines():
             line_words = line.split()
             if len(line_words) < 30:
                 data_list.append(self.__clean_line(line_words, seq_length))
