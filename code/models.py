@@ -14,7 +14,8 @@ class NlpModel:
         seq_length,
         embedding_size,
         hidden_state_size,
-        vocab_size):
+        vocab_size,
+        summaries_dir):
 
         self.session = tf.Session()
 
@@ -31,8 +32,15 @@ class NlpModel:
             batch_outputs, batch_new_states = cell(inputs[:, i], batch_old_states) # how many outputs?
             batch_logits = tf.matmul(batch_outputs, softmax_W) # should work
             # TODO: Calculate loss
+            # TODO: Add loss and other information we want in tensorboard to tf.summary
+            #       E.g. tf.summary.scalar(loss)
             batch_old_states = batch_new_states
 
+        merged_summaries = tf.summary.merge_all()
+        writer = tf.summary.FileWriter(summaries_dir, self.session.graph)
+        # TODO: I don't yet get how to exactly export the summaries, according to the tutorial, session.run() returns the summary
+        #       And then we need to call the writer to serialize the summary to disk
+        #       But after that it's easy, just launch tensorboard and point it to the summaries_dir
         final_state = state
     
     def save_model():

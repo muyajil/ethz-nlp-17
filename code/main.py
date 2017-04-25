@@ -19,12 +19,14 @@ def main(args):
         args.seq_length, 
         args.embedding_size, 
         args.hidden_state_size,
-        args.vocab_size)
+        args.vocab_size,
+        args.summaries_dir)
     # model.session.run() to access the tf.session variable
 
 if __name__ == '__main__':
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", type=int)
     PARSER.add_argument("--data_dir", help="Directory where you keep your data (relative to where your main.py lives)", type=str)
+    PARSER.add_argument("--summaries_dir", help="Directory where the summaries for Tensorboard will be stored", type=str)
     PARSER.add_argument("--file_name", help="The file name of the data to parse", type=str)
     PARSER.add_argument("--batch_size", help="Batch size for the RNN", type=int)
     PARSER.add_argument("--seq_length", help="Sequence Length of the RNN", type=int)
@@ -35,6 +37,7 @@ if __name__ == '__main__':
     
     if args.predef == 1:
         args.data_dir = os.path.join(os.path.dirname(DIR), 'data')
+        args.summaries_dir = os.path.join(os.path.dirname(DIR), 'summaries')
         args.file_name = 'sentences.train'
         args.batch_size = 64
         args.seq_length = 30
