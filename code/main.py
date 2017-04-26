@@ -14,16 +14,8 @@ PARSER = argparse.ArgumentParser(description='LSTM Implementation in Tensorflow'
 def main(args):
     data_train = NlpData(os.path.join(DIR, args.data_dir), args.file_name, args.vocab_size, args.seq_length)
     batch = data_train.get_next_batch(args.batch_size)
-    # model = NlpModel(
-    #     args.batch_size, 
-    #     args.seq_length, 
-    #     args.embedding_size, 
-    #     args.hidden_state_size,
-    #     args.vocab_size,
-    #     args.summaries_dir)
     # TODO: Train model
     # TODO: Serialize Data for Tensorboard
-    # model.session.run() to access the tf.session variable
 
 if __name__ == '__main__':
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')
