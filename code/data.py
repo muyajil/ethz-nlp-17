@@ -48,6 +48,7 @@ class NlpData:
         relevant_counts = counts.most_common(vocab_size-1) # -1 because of <unk>
         word_ids_list = [(relevant_counts[i][0], i) for i in range(len(relevant_counts))]
         word_dict = dict(word_ids_list)
+        word_dict["<unk>"] = vocab_size-1
         self.vocab = word_dict
 
     def __process_file(self, file, seq_length):
@@ -66,7 +67,10 @@ class NlpData:
         for sentence in self.data:
             sentence = []
             for word in sentence:
-                sentence.append(self.vocab[word])
+                if word in self.vocab:
+                    sentence.append(self.vocab[word])
+                else:
+                    sentence.append(self.vocab["<unk>"])
             temp_data.append(sentence)
         self.data_only_ids = temp_data
 
