@@ -38,14 +38,22 @@ if __name__ == '__main__':
     args = PARSER.parse_args()
     
     if args.predef:
-        args.data_dir = os.path.join(os.path.dirname(DIR), 'data')
-        args.summaries_dir = os.path.join(os.path.dirname(DIR), 'summaries')
-        args.file_name = 'sentences.train'
-        args.batch_size = 64
-        args.seq_length = 30
-        args.embedding_size = 100
-        args.hidden_state = 512
-        args.vocab_size = 20000
+        if args.data_dir is None:
+            args.data_dir = os.path.join(os.path.dirname(DIR), 'data')
+        if args.summaries_dir is None:
+            args.summaries_dir = os.path.join(os.path.dirname(DIR), 'summaries')
+        if args.file_name is None:
+            args.file_name = 'sentences.train'
+        if args.batch_size is None:
+            args.batch_size = 64
+        if args.seq_length is None:
+            args.seq_length = 30
+        if args.embedding_size is None:
+            args.embedding_size = 100
+        if args.hidden_state is None:
+            args.hidden_state = 512
+        if args.vocab_size is None:
+            args.vocab_size = 20000
     else:
         exists_missing_arg_values = len(list(filter(lambda x: x is None, vars(args).values()))) > 1
         if exists_missing_arg_values and args.predef is None:
