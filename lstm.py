@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from model import LanguageModel
+from utils import DataReader
 
 class Config(object):
   """
@@ -11,6 +12,8 @@ class Config(object):
   embed_dim = 100
   vocab_size = 20000 + 2 # for UNK TODO
   sentence_length = 30
+  data_path = "TODO/TODO/.."
+  learning_rate = 0.5
 
 class Lstm(LanguageModel):
 
@@ -34,8 +37,10 @@ class Lstm(LanguageModel):
     """
     #TODO: Should we call DataReader.construct here,
     # or is this supposed to be handled in the main.py file?
-    # The main.py file, when calling Lstm(), could pass the iterator
-    # from the DataReader to this method.
+
+    self.data_reader = DataReader()
+    self.data_reader.construct(self.config.data_path,
+      self.config.vocab_size, self.config.sentence_length)
 
   def add_placeholders(self):
     """
@@ -95,18 +100,21 @@ class Lstm(LanguageModel):
     state = (memory_state, hidden_state)
     
     # TODO: Note that I slightly changed the code, such that the model
-    # returns all the predicted words of the sentence
-    # (Not sure if this is the way to go)
+    # returns all the outputs of the sentence (for each word),
+    # as well as all the logits.
+    # (Not sure if this is the way to go) -> see TODO below.
     outputs = []
+    logitss = []
 
     for i in range(self.config.sentence_length-1):
         if i > 0:
             tf.get_variable_scope().reuse_variables()
 
         x = wordvectors[:,i,:]
-        y = input_data[:,i+1]
         output, state = lstm(x, state)
         outputs.append(output)
+        logits = tf.matmul(output, softmax_w) + softmax_b
+        logitss.append(logits)
 
         # TODO:
         # Since we are using this Stanford template, we need to seperate the actual
@@ -116,34 +124,57 @@ class Lstm(LanguageModel):
         # tf.nn.sparse_softmax_cross_entropy_with_logits that allows us to do the 
         # seperation  --> What should we do? 
 
-        # logits = tf.matmul(output, softmax_w) + softmax_b
         # loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=y)
 
-    return outputs
+    return outputs, logitss # <-- TODO: change this according to agreement
+                            #           on the above issue
 
-  def add_loss_op(self, pred):
+  def add_loss_op(self, logitss):
     """Adds ops for loss to the computational graph.
 
     Args:
-      pred: A tensor of shape (batch_size, n_classes)
+      logitss: A tensor of shape (batch_size, sentence_length, vocab_size)
     Returns:
       loss: A 0-d tensor (scalar) output
     """
-    raise NotImplementedError("Each Model must re-implement this method.")
+    loss = 0.
+    for i in range(self.config.sentence_length-1):
+      # TODO: check that "logitss[i]" is of shape (batch_size, vocab_size)
+      loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logitss[i],
+        labels=self.input_placeholder[:,i+1])
+    # TODO: Should we do the following line?
+    loss = tf.div(loss, self.config.sentence_length)
+    return tf.reduce_mean(loss)
 
-  def run_epoch(self, sess, input_data, input_labels):
+  def add_training_op(self, loss):
+    """Sets up the training Ops.
+    Args:
+      loss: Loss tensor.
+    Returns:
+      train_op: The Op for training.
+    """
+    optimizer = tf.train.GradientDescentOptimizer(
+      learning_rate=self.config.learning_rate)
+    # TODO: Apply tf.clip by global norm to clip 
+    train_op = optimizer.minimize(loss)
+    return train_op
+
+  def run_epoch(self, sess''', input_data, input_labels'''):
     """Runs an epoch of training.
 
     Trains the model for one-epoch.
   
     Args:
       sess: tf.Session() object
-      input_data: np.ndarray of shape (n_samples, n_features)
-      input_labels: np.ndarray of shape (n_samples, n_classes)
     Returns:
       average_loss: scalar. Average minibatch loss of model on epoch.
     """
-    raise NotImplementedError("Each Model must re-implement this method.")
+    for i, batch in self.data_reader.get_iterator(self.config.batch_size):
+      feed_dict = self.create_feed_dict(batch)
+      _, loss_value = sess.run([self.train_op, self.loss], feed_dict=feed_dict)
+      loss += loss_value
+    avg_loss = loss / i
+    return avg_loss
 
   def fit(self, sess, input_data, input_labels):
     """Fit model on provided data.
@@ -173,4 +204,12 @@ class Lstm(LanguageModel):
     self.config = config
     self.load_data()
     self.add_placeholders()
-    self.pred = self.add_model(self.input_placeholder)
+    self.outputs, self.logitss = self.add_model(self.input_placeholder)
+    self.loss = self.add_loss_op(self.logitss)
+    self.train_op = self.add_training_op(self.loss)
+
+
+
+
+
+
