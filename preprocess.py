@@ -56,14 +56,14 @@ def read_trim_pad(filename, sentence_length=30):
 
     return sentences
 
-def pipeline(filename):
+def pipeline(path):
     data = read_trim_pad(path)
     data = unk_and_int(data, 20000)
     return data
 
 outpath = '/tmp/nlu-project-data.pickle'
 def iter(path=outpath):
-    with open(outpath, 'br') as f:
+    with open(outpath, 'rb') as f:
         sentences = pickle.load(f)
         for s in sentences:
             yield s
