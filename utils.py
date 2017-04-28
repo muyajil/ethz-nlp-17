@@ -111,3 +111,4 @@ class DataReader(object):
             if batch == []: return
             yield counter, batch
             counter += 1
+
