@@ -12,6 +12,8 @@ def main(config):
             init = tf.global_variables_initializer()
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
+            saver = tf.train.Saver()
+            saver.save(sess, 'models/rnn-language-model')
 
 if __name__ == "__main__":
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')

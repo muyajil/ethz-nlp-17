@@ -13,7 +13,7 @@ class Config(object):
     embed_dim = 100
     vocab_size = 20000 + 2 # for UNK TODO
     sentence_length = 30
-    data_path = "data/sentences.train.small"
+    data_path = "data/sentences.train"
     learning_rate = 0.5
     epochs = 1
     log_dir = "summaries"
@@ -78,21 +78,20 @@ class Lstm(LanguageModel):
         lstm = tf.contrib.rnn.core_rnn_cell.BasicLSTMCell(self.config.state_size)
 
         with tf.variable_scope('foobar'):
-                softmax_w = self._get_variable('softmax_w',
-                    [self.config.state_size, self.config.vocab_size])
-                softmax_b = self._get_variable('softmax_b', [self.config.vocab_size])
+            softmax_w = self._get_variable('softmax_w',[self.config.state_size, self.config.vocab_size])
+            softmax_b = self._get_variable('softmax_b', [self.config.vocab_size])
 
         wordvectors = self.add_embedding(input_data)
 
-        memory_state = tf.Variable(tf.zeros(
-            [self.config.batch_size, self.config.state_size]))
-        hidden_state = tf.Variable(tf.zeros(
-            [self.config.batch_size, self.config.state_size]))
+        memory_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
+        hidden_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
         state = (memory_state, hidden_state)
         sentence_logits = []
 
-        for i in range(self.config.sentence_length-1):
-                tf.get_variable_scope().reuse_variables()
+        with tf.variable_scope("foobar") as scope:
+            for i in range(self.config.sentence_length-1):
+                if i > 0:
+                    scope.reuse_variables()
 
                 x = wordvectors[:,i,:]
                 output, state = lstm(x, state)
@@ -115,8 +114,9 @@ class Lstm(LanguageModel):
             loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
                 labels=self.input_placeholder[:,i+1])
         loss = tf.div(loss, self.config.sentence_length)
-        tf.summary.scalar("loss", loss)
-        return tf.reduce_mean(loss)
+        mean_loss = tf.reduce_mean(loss)
+        tf.summary.scalar("loss", mean_loss)
+        return mean_loss
 
 
     def add_training_op(self, loss):
@@ -150,8 +150,9 @@ class Lstm(LanguageModel):
             feed_dict = self.create_feed_dict(batch)
             _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
+            self.summary_writer.add_summary(merged_summary, i)
         avg_loss = loss / (i+1)
-        return avg_loss, merged_summary
+        return avg_loss
 
 
     def fit(self, sess, input_data):
@@ -165,17 +166,16 @@ class Lstm(LanguageModel):
         """
         losses = []
         print("starting training..")
-        summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
+        self.summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
         for epoch in range(self.config.epochs):
             start_time = time.time()
-            avg_loss, summary = self.run_epoch(sess, input_data)
-            summary_writer.add_summary(summary, epoch * self.config.batch_size)
+            avg_loss = self.run_epoch(sess, input_data)
             # Note that the shuffle is done in get_iterator()
             duration = time.time() - start_time
             print('Epoch %d: loss = %.2f (%.3f sec)'
                          % (epoch, avg_loss, duration))
             losses.append(avg_loss)
-        summary_writer.close()
+        self.summary_writer.close()
         return losses
 
 
