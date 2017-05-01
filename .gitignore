@@ -2,3 +2,4 @@ data/*
 __pycache__/*
 submissions/*
 .vscode/*
+summaries/*

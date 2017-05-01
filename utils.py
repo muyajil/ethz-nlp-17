@@ -21,10 +21,10 @@ class Vocab(object):
     def update(self, sentence):
         '''Update counts with words in sentence.
         '''
-        if isinstance(sentence, basestring):
+        if isinstance(sentence, str):
             self.word_counter.update(sentence.split())
         else:
-            assert isinstance(sentence[0], basestring)
+            assert isinstance(sentence[0], str)
             self.word_counter.update(sentence)
         return
 
