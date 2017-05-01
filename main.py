@@ -2,6 +2,7 @@ import tensorflow as tf
 import argparse
 from lstm import Config
 from lstm import Lstm
+import time
 
 PARSER = argparse.ArgumentParser() 
 
@@ -12,6 +13,8 @@ def main(config):
             init = tf.global_variables_initializer()
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
+            saver = tf.train.Saver()
+            saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
 
 if __name__ == "__main__":
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')
