@@ -80,7 +80,7 @@ class DataReader(object):
         if os.path.isfile(self.cache_file):
             print('loading cached data from: %s' % self.cache_file)
             with open(self.cache_file, 'rb') as f:
-                self.data = pickle.load(f)
+                self.data, self.vocab = pickle.load(f)
         else:
             print('constructing data set')
 
@@ -101,7 +101,7 @@ class DataReader(object):
                 self.data[indx, 1:len(tokens)+1] = tokens
 
             with open(self.cache_file, 'wb') as f:
-                pickle.dump(self.data, f)
+                pickle.dump((self.data, self.vocab), f)
             print('caching data set here: %s' % self.cache_file)
                 
         return
