@@ -60,7 +60,7 @@ class Lstm(LanguageModel):
         Returns:
             wordvectors: A tensor of shape (batch_size, sentence_length, embed_dim)
         """
-        with tf.variable_scope('foobar'):
+        with tf.variable_scope('embedding'):
             embedding = self._get_variable('embedding',
                 [self.config.vocab_size, self.config.embed_dim])
         wordvectors = tf.nn.embedding_lookup(embedding, self.input_placeholder)
@@ -78,7 +78,7 @@ class Lstm(LanguageModel):
         """
         lstm = tf.contrib.rnn.core_rnn_cell.BasicLSTMCell(self.config.state_size)
 
-        with tf.variable_scope('foobar'):
+        with tf.variable_scope('softmax_layer'):
             softmax_w = self._get_variable('softmax_w',[self.config.state_size, self.config.vocab_size])
             softmax_b = self._get_variable('softmax_b', [self.config.vocab_size])
 
@@ -89,7 +89,7 @@ class Lstm(LanguageModel):
         state = (memory_state, hidden_state)
         sentence_logits = []
 
-        with tf.variable_scope("foobar") as scope:
+        with tf.variable_scope('model_state') as scope:
             for i in range(self.config.sentence_length-1):
                 if i > 0:
                     scope.reuse_variables()
