@@ -17,6 +17,7 @@ class Config(object):
     learning_rate = 0.5
     epochs = 1
     log_dir = "summaries"
+    print_freq = 20
 
 class Lstm(LanguageModel):
 
@@ -151,6 +152,10 @@ class Lstm(LanguageModel):
             _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
             self.summary_writer.add_summary(merged_summary, i)
+
+            if i % self.config.print_freq == 0:
+                print("\rbatch: %d loss: %.2f" %(i, loss_value/len(batch)), end='')
+
         avg_loss = loss / (i+1)
         return avg_loss
 
@@ -165,8 +170,8 @@ class Lstm(LanguageModel):
             losses: list of loss per epoch
         """
         losses = []
-        print("starting training..")
         self.summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
+        print("starting training..")
         for epoch in range(self.config.epochs):
             start_time = time.time()
             avg_loss = self.run_epoch(sess, input_data)
