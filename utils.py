@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from collections import Counter
 from itertools import islice
+import pickle
 
 class Vocab(object):
     def __init__(self):
@@ -70,26 +71,39 @@ class DataReader(object):
     def __init__(self):
         self.vocab = Vocab()
         self.data = None
+        self.cache_file = '/tmp/nlp-project-sentences-train.pickle'
         return
     
     def construct(self, path, vocab_size, sent_size):
         '''Load vocabulary, mapping words to tokens, then load corpus as tokens.
         '''
-        # intial pass over path to construct vocabulary 
-        self.vocab.construct(path, vocab_size)
-        
-        # second pass to load corpus as tokens
-        nsents = sum(1 for line in open(path, 'r'))
+        if os.path.isfile(self.cache_file):
+            print('loading cached data from: %s' % self.cache_file)
+            with open(self.cache_file, 'rb') as f:
+                self.data = pickle.load(f)
+        else:
+            print('constructing data set')
 
-        # add padding, bos, eos symbols
-        self.data = np.empty((nsents, sent_size), dtype=int)
-        self.data.fill(self.vocab.encode(self.vocab.padding))
-        self.data[:, 0] = self.vocab.encode(self.vocab.begin)
-        self.data[:, -1] = self.vocab.encode(self.vocab.end)
-        for indx, line in enumerate(open(path, 'r')):
-            tokens = [self.vocab.encode(word) for word in line.split()]
-            tokens = tokens[:sent_size - 2]
-            self.data[indx, 1:len(tokens)+1] = tokens
+            # intial pass over path to construct vocabulary 
+            self.vocab.construct(path, vocab_size)
+        
+            # second pass to load corpus as tokens
+            nsents = sum(1 for line in open(path, 'r'))
+
+            # add padding, bos, eos symbols
+            self.data = np.empty((nsents, sent_size), dtype=int)
+            self.data.fill(self.vocab.encode(self.vocab.padding))
+            self.data[:, 0] = self.vocab.encode(self.vocab.begin)
+            self.data[:, -1] = self.vocab.encode(self.vocab.end)
+            for indx, line in enumerate(open(path, 'r')):
+                tokens = [self.vocab.encode(word) for word in line.split()]
+                tokens = tokens[:sent_size - 2]
+                self.data[indx, 1:len(tokens)+1] = tokens
+
+            with open(self.cache_file, 'wb') as f:
+                pickle.dump(self.data, f)
+            print('caching data set here: %s' % self.cache_file)
+                
         return
 
     def _shuffle(self):
