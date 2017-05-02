@@ -110,14 +110,19 @@ class Lstm(LanguageModel):
         Returns:
             loss: A 0-d tensor (scalar) output
         """
-        loss = 0.
+        loss = 0.0
+        perplexity = 0.0
         for i in range(self.config.sentence_length-1):
             loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
                 labels=self.input_placeholder[:,i+1])
+            perplexity += tf.exp(2, tf.multiply(-1, loss))
         loss = tf.div(loss, self.config.sentence_length)
+        perplexity = tf.div(loss, self.config.sentence_length)
         mean_loss = tf.reduce_mean(loss)
+        mean_perplexity = tf.reduce_mean(perplexity)
         tf.summary.scalar("loss", mean_loss)
-        return mean_loss
+        tf.summary.scalar("perplexity", mean_perplexity)
+        return mean_loss, mean_perplexity
 
 
     def add_training_op(self, loss):
@@ -146,7 +151,7 @@ class Lstm(LanguageModel):
         Returns:
             average_loss: scalar. Average minibatch loss of model on epoch.
         """
-        loss = 0.
+        loss = 0.0
         for i, batch in input_data.get_iterator(self.config.batch_size):
             feed_dict = self.create_feed_dict(batch)
             _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
@@ -221,7 +226,7 @@ class Lstm(LanguageModel):
         self.learning_data = self.load_data()
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
-        self.loss = self.add_loss_op(self.sentence_logits)
+        self.loss, self.perplexity = self.add_loss_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
 
