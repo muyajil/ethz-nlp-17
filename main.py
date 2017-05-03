@@ -18,6 +18,7 @@ def main(config):
 
 if __name__ == "__main__":
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')
+    PARSER.add_argument("--embed_path", help="Load word embeddings from path", type=str)
     PARSER.add_argument("--data_path", help="Training Data file", type=str)
     PARSER.add_argument("--summaries_dir", help="Directory where the summaries for Tensorboard will be stored", type=str)
     PARSER.add_argument("--batch_size", help="Batch size for the RNN", type=int)
@@ -42,4 +43,4 @@ if __name__ == "__main__":
         config.learning_rate = args.learning_rate
         config.epochs = args.epochs
         config.log_dir = args.summaries_dir
-            
+        config.embed_path = args.embed_path
