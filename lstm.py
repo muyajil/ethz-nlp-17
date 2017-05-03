@@ -17,6 +17,20 @@ class Config(object):
     learning_rate = 0.5
     epochs = 1
     log_dir = "summaries"
+    print_freq = 20
+
+
+def log(x, base=10):
+    '''
+    Computes log base `base` of the input `x`. There is no built-in
+
+    Tensorflow function for this as of Mar 2016:
+    https://github.com/tensorflow/tensorflow/issues/1666
+    Temptation to monkey patch almost overwhelming =)
+    '''
+    base = float(base)
+    return tf.log(x) / tf.log(base)
+
 
 class Lstm(LanguageModel):
 
@@ -59,7 +73,7 @@ class Lstm(LanguageModel):
         Returns:
             wordvectors: A tensor of shape (batch_size, sentence_length, embed_dim)
         """
-        with tf.variable_scope('foobar'):
+        with tf.variable_scope('embedding'):
             embedding = self._get_variable('embedding',
                 [self.config.vocab_size, self.config.embed_dim])
         wordvectors = tf.nn.embedding_lookup(embedding, self.input_placeholder)
@@ -77,7 +91,7 @@ class Lstm(LanguageModel):
         """
         lstm = tf.contrib.rnn.core_rnn_cell.BasicLSTMCell(self.config.state_size)
 
-        with tf.variable_scope('foobar'):
+        with tf.variable_scope('softmax_layer'):
             softmax_w = self._get_variable('softmax_w',[self.config.state_size, self.config.vocab_size])
             softmax_b = self._get_variable('softmax_b', [self.config.vocab_size])
 
@@ -88,7 +102,7 @@ class Lstm(LanguageModel):
         state = (memory_state, hidden_state)
         sentence_logits = []
 
-        with tf.variable_scope("foobar") as scope:
+        with tf.variable_scope('model_state') as scope:
             for i in range(self.config.sentence_length-1):
                 if i > 0:
                     scope.reuse_variables()
@@ -101,18 +115,41 @@ class Lstm(LanguageModel):
         return sentence_logits
 
 
+    def add_perplexity_op(self, sentence_logits):
+        # TODO is this redundant with add_loss_op? Maybe be incurring
+        # computational overhead.
+        """Adds ops for perplexity to the computational graph.
+
+        Args:
+            sentence_logits: A tensor of shape (batch_size, sentence_length, vocab_size)
+        Returns:
+            perplexity: 0-d tensor (scalar), 0-d tensor (scalar)
+        """
+        loss = 0.0 # in fact, has shape (batch_size,)
+        for i in range(self.config.sentence_length-1):
+            ith_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
+                                                                      labels=self.input_placeholder[:,i+1])
+            loss += log(ith_loss, base=2)
+        sentence_avg_loss = tf.div(loss, self.config.sentence_length)
+        perplexity = tf.pow(2.0, -sentence_avg_loss)
+        mean_perplexity = tf.reduce_mean(perplexity)
+        tf.summary.scalar("perplexity", mean_perplexity)
+        return mean_perplexity
+
+
     def add_loss_op(self, sentence_logits):
         """Adds ops for loss to the computational graph.
 
         Args:
             sentence_logits: A tensor of shape (batch_size, sentence_length, vocab_size)
         Returns:
-            loss: A 0-d tensor (scalar) output
+            loss, perplexity: 0-d tensor (scalar), 0-d tensor (scalar)
         """
-        loss = 0.
+        loss = 0.0
         for i in range(self.config.sentence_length-1):
             loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
                 labels=self.input_placeholder[:,i+1])
+
         loss = tf.div(loss, self.config.sentence_length)
         mean_loss = tf.reduce_mean(loss)
         tf.summary.scalar("loss", mean_loss)
@@ -145,12 +182,22 @@ class Lstm(LanguageModel):
         Returns:
             average_loss: scalar. Average minibatch loss of model on epoch.
         """
-        loss = 0.
+        loss = 0.0
         for i, batch in input_data.get_iterator(self.config.batch_size):
             feed_dict = self.create_feed_dict(batch)
-            _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
+            # TODO kinda shitty that every time we add an op we have
+            # to remember to put it in here. There should be some way
+            # of automagically detecting which ops are available.
+            _, loss_value, perplexity_value, merged_summary = sess.run([self.train_op, self.loss, self.perplexity, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
             self.summary_writer.add_summary(merged_summary, i)
+
+            if i % self.config.print_freq == 0:
+                msg = "batch: %d loss: %.2f perplexity: %.2f" %(i, loss_value, perplexity_value)
+                # TODO this constant whitespace is being recreated each time.
+                print(' '*80, end='\r') # flush
+                print(msg, end='\r')
+
         avg_loss = loss / (i+1)
         return avg_loss
 
@@ -165,8 +212,8 @@ class Lstm(LanguageModel):
             losses: list of loss per epoch
         """
         losses = []
-        print("starting training..")
         self.summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
+        print("starting training..")
         for epoch in range(self.config.epochs):
             start_time = time.time()
             avg_loss = self.run_epoch(sess, input_data)
@@ -217,11 +264,6 @@ class Lstm(LanguageModel):
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
         self.loss = self.add_loss_op(self.sentence_logits)
+        self.perplexity = self.add_perplexity_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
-
-
-
-
-
-
