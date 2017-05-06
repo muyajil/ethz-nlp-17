@@ -239,7 +239,7 @@ class Lstm(LanguageModel):
             # TODO kinda shitty that every time we add an op we have
             # to remember to put it in here. There should be some way
             # of automagically detecting which ops are available.
-            _, loss_value, perplexity_values, merged_summary = sess.run([self.train_op, self.loss, self.perplexities, self.merged_summary_op], feed_dict=feed_dict)
+            _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
             self.summary_writer.add_summary(merged_summary, i)
 
