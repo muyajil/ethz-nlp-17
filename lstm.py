@@ -5,6 +5,7 @@ import gensim
 
 from model import LanguageModel
 from utils import DataReader
+from utils import SubmissionGenerator
 _PROGRESS_BAR = False
 
 class Config(object):
@@ -282,6 +283,21 @@ class Lstm(LanguageModel):
         self.summary_writer.close()
         return losses
 
+    def test(self, sess, input_data):
+        """Test model on provided data.
+
+        Args:
+            sess: tf.Session()
+            input_data: utils.DataReader() object, with construct() already called
+        Returns:
+            perplexities: list of perplexities for each sentence
+        """
+        subGen = SubmissionGenerator(self.config.submission_dir)
+        print("starting testing..")
+        for i, batch in input_data.get_iterator(self.config.batch_size):
+            feed_dict = self.create_feed_dict(batch)
+            perplexity_batch = sess.run([self.perplexity_op], feed_dict=feed_dict)
+            subGen.append_perplexities(perplexity_batch)
 
     def predict(self, sess, input_data):
         """Make predictions from the provided model.
@@ -322,7 +338,7 @@ class Lstm(LanguageModel):
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
         self.loss = self.add_loss_op(self.sentence_logits)
-        self.perplexities = self.add_perplexity_op(self.sentence_logits)
+        self.perplexity_op = self.add_perplexity_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
 

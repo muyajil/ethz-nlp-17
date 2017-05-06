@@ -14,6 +14,7 @@ def main(config):
             init = tf.global_variables_initializer()
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
+            model.test(sess, model.test_data)
             saver = tf.train.Saver()
             saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
 
