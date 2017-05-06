@@ -58,7 +58,7 @@ class Lstm(LanguageModel):
 
 
     def add_placeholders(self):
-        self.input_placeholder = tf.placeholder(tf.int64,
+        self.input_placeholder = tf.placeholder(tf.int32,
                 (self.config.batch_size, self.config.sentence_length))
 
 
@@ -123,18 +123,27 @@ class Lstm(LanguageModel):
         Args:
             sentence_logits: A tensor of shape (batch_size, sentence_length, vocab_size)
         Returns:
-            perplexity: 0-d tensor (scalar), 0-d tensor (scalar)
+            perplexity: A tensor of shape (batch_size, ) (One perplexity for each sentence)
         """
-        loss = 0.0 # in fact, has shape (batch_size,)
+        sum_of_props = 0.0 # in fact, has shape (batch_size,) (checked)
+        num_words_per_sentence = [self.config.sentence_length]*self.config.batch_size
         for i in range(self.config.sentence_length-1):
-            ith_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
-                                                                      labels=self.input_placeholder[:,i+1])
-            loss += log(ith_loss, base=2)
-        sentence_avg_loss = tf.div(loss, self.config.sentence_length)
-        perplexity = tf.pow(2.0, -sentence_avg_loss)
-        mean_perplexity = tf.reduce_mean(perplexity)
-        tf.summary.scalar("perplexity", mean_perplexity)
-        return mean_perplexity
+            ith_softmax = tf.nn.softmax(logits=sentence_logits[i]) # shape (batch_size, vocab_size) (checked)
+
+            ith_probability = [] # will have shape (batch_size,) after the following loop (checked)
+            
+            for j in range(self.config.batch_size):
+                prob_ij = ith_softmax[j, self.input_placeholder[j,i+1]] # is only one number (checked)
+                if self.input_placeholder[j,i+1] == self.learning_data.vocab.word_to_index[self.learning_data.vocab.padding]:
+                    prob_ij = 0.0
+                    num_words_per_sentence[j]-=1
+                ith_probability.append(prob_ij)
+
+            sum_of_props += log(ith_probability, base=2)
+        
+        mean_log_prob_per_sentence = tf.div(sum_of_props, num_words_per_sentence) # shape (batch_size,)
+        perplexity_per_sentence = tf.pow(2.0, -mean_log_prob_per_sentence) # shape (batch_size,)
+        return perplexity_per_sentence
 
 
     def add_loss_op(self, sentence_logits):
@@ -188,7 +197,7 @@ class Lstm(LanguageModel):
             # TODO kinda shitty that every time we add an op we have
             # to remember to put it in here. There should be some way
             # of automagically detecting which ops are available.
-            _, loss_value, perplexity_value, merged_summary = sess.run([self.train_op, self.loss, self.perplexity, self.merged_summary_op], feed_dict=feed_dict)
+            _, loss_value, perplexity_values, merged_summary = sess.run([self.train_op, self.loss, self.perplexities, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
             self.summary_writer.add_summary(merged_summary, i)
 
@@ -264,6 +273,6 @@ class Lstm(LanguageModel):
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
         self.loss = self.add_loss_op(self.sentence_logits)
-        self.perplexity = self.add_perplexity_op(self.sentence_logits)
+        self.perplexities = self.add_perplexity_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
