@@ -365,6 +365,6 @@ def generate_helper(sess, model, tokens, config):
         sentence.append(w_curr)
         if w_curr == config.stop_symbol: break
         feed_dict = {model.input_placeholder: [w_curr], model.state: state}
-        w_next_logits, state = sess.run([model.sentence_logits[-1], model.state])
+        w_next_logits, state = sess.run([model.sentence_logits[-1], model.state], feed_dict=feed_dict)
         p_w_next = tf.softmax(w_next_logits)
     return sentence
