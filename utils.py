@@ -131,9 +131,9 @@ class SubmissionGenerator(object):
     def __init__(self, submission_folder):
         self.filename = os.path.join(submission_folder, 'group29.perplexity')
 
-    def generate_submission(self, perplexities):
-        with open(self.filename, 'w') as file:
+    def append_perplexities(self, perplexities):
+        with open(self.filename, 'a') as file:
             for perplexity in perplexities:
                 file.write(str(perplexity))
             file.close()
-        print('Generated submission file' + str(self.filename))
+        print('Appended perplexities to ' + str(self.filename))

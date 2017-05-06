@@ -61,6 +61,12 @@ class Lstm(LanguageModel):
             self.config.vocab_size, self.config.sentence_length)
         return data_reader
 
+    def load_test_data(self):
+        print("loading test data..")
+        data_reader = DataReader()
+        data_reader.construct('data/sentences.test',
+            self.config.vocab_size, self.config.sentence_length)
+        return data_reader
 
     def add_placeholders(self):
         self.input_placeholder = tf.placeholder(tf.int64,
@@ -303,6 +309,7 @@ class Lstm(LanguageModel):
     def __init__(self, config):
         self.config = config
         self.learning_data = self.load_data()
+        self.test_data = self.load_test_data()
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
         self.loss = self.add_loss_op(self.sentence_logits)

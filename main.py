@@ -14,8 +14,6 @@ def main(config):
             init = tf.global_variables_initializer()
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
-            subGen = SubmissionGenerator(config.submission_dir)
-            # TODO: Call generate_submission with the perplexities
             saver = tf.train.Saver()
             saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
 
