@@ -126,3 +126,14 @@ class DataReader(object):
             yield counter, batch
             counter += 1
 
+class SubmissionGenerator(object):
+
+    def __init__(self, submission_folder, ex_number):
+        self.filename = os.path.join(submission_folder, 'group29.perplexity' + str(ex_number))
+
+    def generate_submission(self, perplexities):
+        with open(self.filename, 'w') as file:
+            for perplexity in perplexities:
+                file.write(str(perplexity))
+            file.close()
+        print('Generated submission file' + str(self.filename))
