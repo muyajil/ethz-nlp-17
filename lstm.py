@@ -17,6 +17,7 @@ class Config(object):
     embed_dim = 100
     vocab_size = 20000
     sentence_length = 30
+    num_steps = sentence_length - 1
     data_path = "data/sentences.train"
     test_path = "data/sentences.test"
     learning_rate = 0.01
@@ -24,7 +25,8 @@ class Config(object):
     log_dir = "summaries"
     print_freq = 10
     embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
-    submission_dir = "submissions"
+    down_project = None
+    submission_dir = "submissions
 
 
 def log(x, base=10):
@@ -131,31 +133,38 @@ class Lstm(LanguageModel):
             input_data: A tensor of shape (batch_size, sentence_length).
         Returns:
             sentence_logits: A tensor of shape (batch_size, sentence_length, vocab_size)
-	     For each batch, there are the logits of for each word of the sentence
+	            For each batch, there are the logits of for each word of the sentence
         """
         lstm = tf.contrib.rnn.core_rnn_cell.BasicLSTMCell(self.config.state_size)
 
         with tf.variable_scope('softmax_layer'):
-            softmax_w = self._get_variable('softmax_w',[self.config.state_size, self.config.vocab_size])
+            if self.config.down_project:
+                softmax_w = self._get_variable('softmax_w', [self.config.down_project, self.config.vocab_size])
+                project_w = self._get_variable('project_w', [self.config.state_size, self.config.down_project])
+            else:
+                softmax_w = self._get_variable('softmax_w',[self.config.state_size, self.config.vocab_size])
+                project_w = None
             softmax_b = self._get_variable('softmax_b', [self.config.vocab_size])
-
+        
         wordvectors = self.add_embedding(input_data)
 
         memory_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
         hidden_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
         state = (memory_state, hidden_state)
         sentence_logits = []
-
         with tf.variable_scope('model_state') as scope:
-            for i in range(self.config.sentence_length-1):
+            for i in range(self.config.num_steps):
                 if i > 0:
                     scope.reuse_variables()
 
                 x = wordvectors[:,i,:]
                 output, state = lstm(x, state)
+                if not project_w is None: output = tf.matmul(output, project_w)
+
                 logits = tf.matmul(output, softmax_w) + softmax_b
                 sentence_logits.append(logits)
 
+        self.hidden_state = sentence_logits[-1]
         return sentence_logits
 
 
@@ -199,7 +208,7 @@ class Lstm(LanguageModel):
             loss, perplexity: 0-d tensor (scalar), 0-d tensor (scalar)
         """
         loss = 0.0
-        for i in range(self.config.sentence_length-1):
+        for i in range(self.config.num_steps):
             loss += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
                 labels=self.input_placeholder[:,i+1])
 
@@ -309,28 +318,7 @@ class Lstm(LanguageModel):
             average_loss: Average loss of model.
             predictions: Predictions of model on input_data
         """
-        # TODO: This whole function needs to be (re)done
-        '''
-        start_time = time.time()
-        predictions = []
-        
-        for i, batch in input_data.get_iterator(self.config.batch_size):
-            feed_dict = self.create_feed_dict(batch)
-            # TODO: Maybe we cannot use the same "model" as in the learning,
-            #             because there we always feed in the ground truth, and not the
-            #             output word of the previous step.
-            sentence_logits, loss_value = sess.run([self.sentence_logits, self.loss], feed_dict=feed_dict)
-            for sentence in sentence_logits:
-                
-            predictions.append(self.to_words(sentence_logits))
-            loss += loss_value
-        avg_loss = loss / i
-
-        duration = time.time() - start_time
-        print('loss = %.2f (%.3f sec)' % (avg_loss, duration))
-     '''
         pass
-
 
     def __init__(self, config):
         self.config = config
@@ -343,4 +331,38 @@ class Lstm(LanguageModel):
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
 
+#TODO: Generate Sentences
+def _advance_single_state(sess, model, w_curr, state):
+    '''Runs the model one step.
+
+    Returns:
+        w_next_logits: logits over the next word
+        state: current hidden state
+    '''
+    raise NotImplementedError
+    return w_next_logits, state
+
+def generate_helper(sess, model, tokens, config):
+    '''Generate a sentence
+    
+    Args:
+        sess: tf.session instance
+        model: used to predict next word given current word
+            and the hidden state (history)
+        tokens: list of tokens in sentence
+        config: gen_size (length of generated sentences)
+            stop_symbol (tells when sentence is over)
+    '''
+    state = _get_init_state()
+    p_w_next = None
+    for i in range(config.gen_size):
+        try:
+            w_curr = tokens[i]
+        except IndexError:
+            assert not p_w_next is None
+            w_curr = tf.argmax(p_w_next)
+        if w_curr == config.stop_symbol: break
+        w_next_logits, state = _advance_single_state(sess, model, w_curr, state)
+        p_w_next = softmax(w_next_logits)
+    pass
 
