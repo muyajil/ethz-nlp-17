@@ -26,8 +26,7 @@ class Config(object):
     print_freq = 10
     embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
     down_project = None
-    submission_dir = "submissions
-
+    submission_dir = "submissions"
 
 def log(x, base=10):
     '''
@@ -148,9 +147,7 @@ class Lstm(LanguageModel):
         
         wordvectors = self.add_embedding(input_data)
 
-        memory_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
-        hidden_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
-        state = (memory_state, hidden_state)
+        state = self._get_initial_state()
         sentence_logits = []
         with tf.variable_scope('model_state') as scope:
             for i in range(self.config.num_steps):
@@ -167,7 +164,17 @@ class Lstm(LanguageModel):
         self.hidden_state = sentence_logits[-1]
         return sentence_logits
 
+    def _get_initial_state(self):
+        '''Returns the initial state for the RNN.
 
+        Returns:
+            state: memory, hidden state for LSTM, initialized as zeros
+        '''
+        memory_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
+        hidden_state = tf.Variable(tf.zeros([self.config.batch_size, self.config.state_size]))
+        state = (memory_state, hidden_state)
+        return state
+ 
     def add_perplexity_op(self, sentence_logits):
         # TODO is this redundant with add_loss_op? Maybe be incurring
         # computational overhead.
@@ -332,16 +339,6 @@ class Lstm(LanguageModel):
         self.merged_summary_op = tf.summary.merge_all()
 
 #TODO: Generate Sentences
-def _advance_single_state(sess, model, w_curr, state):
-    '''Runs the model one step.
-
-    Returns:
-        w_next_logits: logits over the next word
-        state: current hidden state
-    '''
-    raise NotImplementedError
-    return w_next_logits, state
-
 def generate_helper(sess, model, tokens, config):
     '''Generate a sentence
     
@@ -353,16 +350,21 @@ def generate_helper(sess, model, tokens, config):
         config: gen_size (length of generated sentences)
             stop_symbol (tells when sentence is over)
     '''
-    state = _get_init_state()
+    assert config.step_size == 1
+    assert config.num_steps == 1
+
+    state = model._get_initial_state().eval()
     p_w_next = None
+    sentence = list()
     for i in range(config.gen_size):
         try:
             w_curr = tokens[i]
         except IndexError:
             assert not p_w_next is None
             w_curr = tf.argmax(p_w_next)
+        sentence.append(w_curr)
         if w_curr == config.stop_symbol: break
-        w_next_logits, state = _advance_single_state(sess, model, w_curr, state)
-        p_w_next = softmax(w_next_logits)
-    pass
-
+        feed_dict = {model.input_placeholder: [w_curr], model.state: state}
+        w_next_logits, state = sess.run([model.sentence_logits[-1], model.state])
+        p_w_next = tf.softmax(w_next_logits)
+    return sentence

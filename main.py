@@ -1,22 +1,36 @@
 import tensorflow as tf
 import argparse
+from copy import deepcopy
+
 from lstm import Config
 from lstm import Lstm
-from utils import SubmissionGenerator
 import time
 
 PARSER = argparse.ArgumentParser() 
 
 def main(config):
+    # Generator should look at one sentence at a time and
+    # only run the LSTM for one step
+    # Generator sees tokens one at a time, i.e. sentence_length = 1
+    gen_config = deepcopy(config)
+    gen_config.batch_size = 1
+    gen_config.num_steps = 1
+    gen_config.sentence_length = 1
+
     with tf.Graph().as_default():
-        with tf.Session() as sess:
+        with tf.variable_scope('RNNLM') as scope:
             model = Lstm(config)
-            init = tf.global_variables_initializer()
+            # Tell gen_model to share parameters with model
+            scope.reuse_variables()
+            gen_model = Lstm(gen_config)
+
+        init = tf.global_variables_initializer()
+        with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
-            model.test(sess, model.test_data)
             saver = tf.train.Saver()
             saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
+
 
 
 if __name__ == "__main__":
