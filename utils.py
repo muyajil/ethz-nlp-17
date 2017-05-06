@@ -126,3 +126,14 @@ class DataReader(object):
             yield counter, batch
             counter += 1
 
+class SubmissionGenerator(object):
+
+    def __init__(self, submission_folder):
+        self.filename = os.path.join(submission_folder, 'group29.perplexity')
+
+    def append_perplexities(self, perplexities):
+        with open(self.filename, 'a') as file:
+            for perplexity in perplexities:
+                file.write(str(perplexity))
+            file.close()
+        print('Appended perplexities to ' + str(self.filename))

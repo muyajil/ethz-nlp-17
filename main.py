@@ -2,6 +2,7 @@ import tensorflow as tf
 import argparse
 from lstm import Config
 from lstm import Lstm
+from utils import SubmissionGenerator
 import time
 
 PARSER = argparse.ArgumentParser() 
@@ -18,6 +19,7 @@ def main(config):
 
 if __name__ == "__main__":
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')
+    PARSER.add_argument("--embed_path", help="Load word embeddings from path", type=str)
     PARSER.add_argument("--data_path", help="Training Data file", type=str)
     PARSER.add_argument("--summaries_dir", help="Directory where the summaries for Tensorboard will be stored", type=str)
     PARSER.add_argument("--batch_size", help="Batch size for the RNN", type=int)
@@ -27,6 +29,7 @@ if __name__ == "__main__":
     PARSER.add_argument("--vocab_size", help="The size of your vocabulary", type=int)
     PARSER.add_argument("--learning_rate", help="Learning Rate for AdamOptimizer", type=float)
     PARSER.add_argument("--epochs", help="How many training epochs", type=int)
+    PARSER.add_argument("--submission_dir", help="Folder where to store submissions", type=str)
     args = PARSER.parse_args()
 
     config = Config()
@@ -42,4 +45,5 @@ if __name__ == "__main__":
         config.learning_rate = args.learning_rate
         config.epochs = args.epochs
         config.log_dir = args.summaries_dir
-            
+        config.embed_path = args.embed_path
+        config.submission_dir = args.submission_dir
