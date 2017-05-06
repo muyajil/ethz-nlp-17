@@ -1,8 +1,11 @@
 import time
 import numpy as np
 import tensorflow as tf
+import gensim
+
 from model import LanguageModel
 from utils import DataReader
+_PROGRESS_BAR = False
 
 class Config(object):
     """
@@ -11,13 +14,14 @@ class Config(object):
     batch_size = 64
     state_size = 512
     embed_dim = 100
-    vocab_size = 20000 + 2 # for UNK TODO
+    vocab_size = 20000
     sentence_length = 30
     data_path = "data/sentences.train"
-    learning_rate = 0.5
+    learning_rate = 0.01
     epochs = 1
     log_dir = "summaries"
-    print_freq = 20
+    print_freq = 10
+    embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
 
 
 def log(x, base=10):
@@ -66,6 +70,23 @@ class Lstm(LanguageModel):
         return {self.input_placeholder: input_batch}
 
 
+    def _load_pretrain_embedding(self, path):
+        print("Loading external embeddings from %s" % path)
+        model = gensim.models.KeyedVectors.load_word2vec_format(path, binary=False)
+        external_embedding = np.zeros(shape=(self.config.vocab_size, self.config.embed_dim))
+        matches = 0
+        for tok, idx in self.learning_data.vocab.word_to_index.items():
+            if tok in model.vocab:
+                external_embedding[idx] = model[tok]
+                matches += 1
+            else:
+                print("%s not in embedding file" % tok)
+                external_embedding[idx] = np.random.uniform(low=-0.25, high=0.25, size=self.config.embed_dim)
+            
+        print("%d words out of %d could be loaded" % (matches, self.config.vocab_size))
+        return external_embedding
+            
+
     def add_embedding(self, input_data):
         """Add embedding layer that maps from vocabulary to vectors.
         Args:
@@ -74,9 +95,23 @@ class Lstm(LanguageModel):
             wordvectors: A tensor of shape (batch_size, sentence_length, embed_dim)
         """
         with tf.variable_scope('embedding'):
-            embedding = self._get_variable('embedding',
-                [self.config.vocab_size, self.config.embed_dim])
-        wordvectors = tf.nn.embedding_lookup(embedding, self.input_placeholder)
+            embedding_shape = [self.config.vocab_size, self.config.embed_dim]
+            if self.config.embed_path is None:
+                embedding = self._get_variable('embedding', embedding_shape)
+            else:
+                pretrain = self._load_pretrain_embedding(self.config.embed_path)
+                assert np.array_equal(pretrain.shape, embedding_shape)
+                # TODO: When done this way, embeddings are stored more than once!
+                #       This can lead to memory issues. The correct way is to adapt
+                #       from the code of the TA but it is much more complicated..
+                # See here:
+                # http://stackoverflow.com/questions/35687678/using-a-pre-trained-word-embedding-word2vec-or-glove-in-tensorflow
+                embedding = tf.get_variable('embedding',
+                    shape=embedding_shape,
+                    initializer=tf.constant_initializer(pretrain),
+                    trainable=False)
+
+        wordvectors = tf.nn.embedding_lookup(embedding, input_data)
 
         return wordvectors
         
@@ -195,8 +230,11 @@ class Lstm(LanguageModel):
             if i % self.config.print_freq == 0:
                 msg = "batch: %d loss: %.2f perplexity: %.2f" %(i, loss_value, perplexity_value)
                 # TODO this constant whitespace is being recreated each time.
-                print(' '*80, end='\r') # flush
-                print(msg, end='\r')
+                if _PROGRESS_BAR:
+                    print(' '*80, end='\r') # flush
+                    print(msg, end='\r')
+                else:
+                    print(msg, end='\n')
 
         avg_loss = loss / (i+1)
         return avg_loss
@@ -211,6 +249,9 @@ class Lstm(LanguageModel):
         Returns:
             losses: list of loss per epoch
         """
+        # TODO: proper embedding implementation
+        # Need a sess.run call to assign pretrained embeddings to
+        # self.embedding_placeholder
         losses = []
         self.summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
         print("starting training..")
@@ -267,3 +308,5 @@ class Lstm(LanguageModel):
         self.perplexity = self.add_perplexity_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
+
+
