@@ -2,24 +2,25 @@ import tensorflow as tf
 import argparse
 from lstm import Config
 from lstm import Lstm
+from utils import SubmissionGenerator
 import time
 
 PARSER = argparse.ArgumentParser() 
 
 def main(config):
     with tf.Graph().as_default():
-        with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+        with tf.Session() as sess:
             model = Lstm(config)
             init = tf.global_variables_initializer()
             sess.run(init)
             losses = model.fit(sess, model.learning_data)
+            model.test(sess, model.test_data)
             saver = tf.train.Saver()
             saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
 
 
 if __name__ == "__main__":
     PARSER.add_argument("--predef", help="Predefined mode for all arguments", action='store_true')
-
     PARSER.add_argument("--batch_size", help="Batch size for the RNN", type=int, default=64)
     PARSER.add_argument("--hidden_state", help="The size of the hidden states of the RNN", type=int, default=512)
     PARSER.add_argument("--embedding_size", help="Embedding Size of the words", type=int, default=100)
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     PARSER.add_argument("--print_every", help="Print loss, perplexity every X batches", type=int, default=10)
     PARSER.add_argument("--embed_path", help="Load word embeddings from path", type=str, default=None)
     PARSER.add_argument("--down_project", help="Down project hidden state before softmax (< hidden_state)", type=int, default=None)
-
+    PARSER.add_argument("--submission_dir", help="Folder where to store submissions", type=str)
     args = PARSER.parse_args()
 
     config = Config()
@@ -48,5 +49,4 @@ if __name__ == "__main__":
     config.print_freq = args.print_every
     config.embed_path = args.embed_path
     config.down_project = args.down_project
-
-    main(config)
+    config.submission_dir = args.submission_dir

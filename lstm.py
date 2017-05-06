@@ -1,10 +1,11 @@
 import time
 import numpy as np
 import tensorflow as tf
-import gensim
+#import gensim
 
 from model import LanguageModel
 from utils import DataReader
+from utils import SubmissionGenerator
 _PROGRESS_BAR = False
 
 class Config(object):
@@ -18,12 +19,14 @@ class Config(object):
     sentence_length = 30
     num_steps = sentence_length - 1
     data_path = "data/sentences.train"
+    test_path = "data/sentences.test"
     learning_rate = 0.01
     epochs = 1
     log_dir = "summaries"
     print_freq = 10
     embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
     down_project = None
+    submission_dir = "submissions
 
 
 def log(x, base=10):
@@ -62,9 +65,15 @@ class Lstm(LanguageModel):
             self.config.vocab_size, self.config.sentence_length)
         return data_reader
 
+    def load_test_data(self):
+        print("loading test data..")
+        data_reader = DataReader()
+        data_reader.construct(self.config.test_path,
+            self.config.vocab_size, self.config.sentence_length)
+        return data_reader
 
     def add_placeholders(self):
-        self.input_placeholder = tf.placeholder(tf.int64,
+        self.input_placeholder = tf.placeholder(tf.int32,
                 (self.config.batch_size, self.config.sentence_length))
 
 
@@ -167,18 +176,27 @@ class Lstm(LanguageModel):
         Args:
             sentence_logits: A tensor of shape (batch_size, sentence_length, vocab_size)
         Returns:
-            perplexity: 0-d tensor (scalar), 0-d tensor (scalar)
+            perplexity: A tensor of shape (batch_size, ) (One perplexity for each sentence)
         """
-        loss = 0.0 # in fact, has shape (batch_size,)
-        for i in range(self.config.num_steps):
-            ith_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=sentence_logits[i],
-                                                                      labels=self.input_placeholder[:,i+1])
-            loss += log(ith_loss, base=2)
-        sentence_avg_loss = tf.div(loss, self.config.sentence_length)
-        perplexity = tf.pow(2.0, -sentence_avg_loss)
-        mean_perplexity = tf.reduce_mean(perplexity)
-        tf.summary.scalar("perplexity", mean_perplexity)
-        return mean_perplexity
+        sum_of_props = 0.0 # in fact, has shape (batch_size,) (checked)
+        num_words_per_sentence = [self.config.sentence_length]*self.config.batch_size
+        for i in range(self.config.sentence_length-1):
+            ith_softmax = tf.nn.softmax(logits=sentence_logits[i]) # shape (batch_size, vocab_size) (checked)
+
+            ith_probability = [] # will have shape (batch_size,) after the following loop (checked)
+            
+            for j in range(self.config.batch_size):
+                prob_ij = ith_softmax[j, self.input_placeholder[j,i+1]] # is only one number (checked)
+                if self.input_placeholder[j,i+1] == self.learning_data.vocab.word_to_index[self.learning_data.vocab.padding]:
+                    prob_ij = 0.0
+                    num_words_per_sentence[j]-=1
+                ith_probability.append(prob_ij)
+
+            sum_of_props += log(ith_probability, base=2)
+        
+        mean_log_prob_per_sentence = tf.div(sum_of_props, num_words_per_sentence) # shape (batch_size,)
+        perplexity_per_sentence = tf.pow(2.0, -mean_log_prob_per_sentence) # shape (batch_size,)
+        return perplexity_per_sentence
 
 
     def add_loss_op(self, sentence_logits):
@@ -232,12 +250,12 @@ class Lstm(LanguageModel):
             # TODO kinda shitty that every time we add an op we have
             # to remember to put it in here. There should be some way
             # of automagically detecting which ops are available.
-            _, loss_value, perplexity_value, merged_summary = sess.run([self.train_op, self.loss, self.perplexity, self.merged_summary_op], feed_dict=feed_dict)
+            _, loss_value, merged_summary = sess.run([self.train_op, self.loss, self.merged_summary_op], feed_dict=feed_dict)
             loss += loss_value
             self.summary_writer.add_summary(merged_summary, i)
 
             if i % self.config.print_freq == 0:
-                msg = "batch: %d loss: %.2f perplexity: %.2f" %(i, loss_value, perplexity_value)
+                msg = "batch: %d loss: %.2f" %(i, loss_value)
                 # TODO this constant whitespace is being recreated each time.
                 if _PROGRESS_BAR:
                     print(' '*80, end='\r') # flush
@@ -275,6 +293,21 @@ class Lstm(LanguageModel):
         self.summary_writer.close()
         return losses
 
+    def test(self, sess, input_data):
+        """Test model on provided data.
+
+        Args:
+            sess: tf.Session()
+            input_data: utils.DataReader() object, with construct() already called
+        Returns:
+            perplexities: list of perplexities for each sentence
+        """
+        subGen = SubmissionGenerator(self.config.submission_dir)
+        print("starting testing..")
+        for i, batch in input_data.get_iterator(self.config.batch_size):
+            feed_dict = self.create_feed_dict(batch)
+            perplexity_batch = sess.run([self.perplexity_op], feed_dict=feed_dict)
+            subGen.append_perplexities(perplexity_batch)
 
     def predict(self, sess, input_data):
         """Make predictions from the provided model.
@@ -290,10 +323,11 @@ class Lstm(LanguageModel):
     def __init__(self, config):
         self.config = config
         self.learning_data = self.load_data()
+        self.test_data = self.load_test_data()
         self.add_placeholders()
         self.sentence_logits = self.add_model(self.input_placeholder)
         self.loss = self.add_loss_op(self.sentence_logits)
-        self.perplexity = self.add_perplexity_op(self.sentence_logits)
+        self.perplexity_op = self.add_perplexity_op(self.sentence_logits)
         self.train_op = self.add_training_op(self.loss)
         self.merged_summary_op = tf.summary.merge_all()
 
