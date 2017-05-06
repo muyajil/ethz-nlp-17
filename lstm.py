@@ -22,6 +22,7 @@ class Config(object):
     log_dir = "summaries"
     print_freq = 10
     embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
+    submission_dir = "submissions"
 
 
 def log(x, base=10):

@@ -128,8 +128,8 @@ class DataReader(object):
 
 class SubmissionGenerator(object):
 
-    def __init__(self, submission_folder, ex_number):
-        self.filename = os.path.join(submission_folder, 'group29.perplexity' + str(ex_number))
+    def __init__(self, submission_folder):
+        self.filename = os.path.join(submission_folder, 'group29.perplexity')
 
     def generate_submission(self, perplexities):
         with open(self.filename, 'w') as file:
