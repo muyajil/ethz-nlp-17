@@ -9,7 +9,7 @@ PARSER = argparse.ArgumentParser()
 
 def main(config):
     with tf.Graph().as_default():
-        with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+        with tf.Session() as sess:
             model = Lstm(config)
             init = tf.global_variables_initializer()
             sess.run(init)

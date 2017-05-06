@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import tensorflow as tf
-import gensim
+#import gensim
 
 from model import LanguageModel
 from utils import DataReader
@@ -18,6 +18,7 @@ class Config(object):
     vocab_size = 20000
     sentence_length = 30
     data_path = "data/sentences.train"
+    test_path = "data/sentences.test"
     learning_rate = 0.01
     epochs = 1
     log_dir = "summaries"
@@ -65,7 +66,7 @@ class Lstm(LanguageModel):
     def load_test_data(self):
         print("loading test data..")
         data_reader = DataReader()
-        data_reader.construct('data/sentences.test',
+        data_reader.construct(self.config.test_path,
             self.config.vocab_size, self.config.sentence_length)
         return data_reader
 
@@ -245,7 +246,7 @@ class Lstm(LanguageModel):
             self.summary_writer.add_summary(merged_summary, i)
 
             if i % self.config.print_freq == 0:
-                msg = "batch: %d loss: %.2f perplexity: %.2f" %(i, loss_value, perplexity_value)
+                msg = "batch: %d loss: %.2f" %(i, loss_value)
                 # TODO this constant whitespace is being recreated each time.
                 if _PROGRESS_BAR:
                     print(' '*80, end='\r') # flush
