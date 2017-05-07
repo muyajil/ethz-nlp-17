@@ -368,3 +368,4 @@ def generate_helper(sess, model, tokens, config):
         w_next_logits, state = sess.run([model.sentence_logits[-1], model.state], feed_dict=feed_dict)
         p_w_next = tf.softmax(w_next_logits)
     return sentence
+

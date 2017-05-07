@@ -10,12 +10,12 @@ PARSER = argparse.ArgumentParser()
 
 def main(config):
     # Generator should look at one sentence at a time and
-    # only run the LSTM for one step
+    # Only run the LSTM for one step
     # Generator sees tokens one at a time, i.e. sentence_length = 1
     gen_config = deepcopy(config)
     gen_config.batch_size = 1
-    gen_config.num_steps = 1
     gen_config.sentence_length = 1
+    gen_config.num_steps = 1
 
     with tf.Graph().as_default():
         with tf.variable_scope('RNNLM') as scope:
