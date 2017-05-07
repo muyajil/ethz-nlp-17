@@ -28,19 +28,23 @@ def continue_sentence(sess, model, tokens, gen_size=20):
     n_generated_words = 0
     for i in range(gen_size):
         try:
+            # See if more words are in the prompt
             w_curr = tokens[i]
         except IndexError:
+            # Or else we use the word we predicted
             assert not p_w_next is None
             w_curr = tf.argmax(p_w_next)
-            # Increment perplexity if we predicted w_curr
-            perplexity += w_next_perp
+            # Increment perplexity if we had predicted w_curr
+            # TODO: possibly bad syntax here
+            perplexity += w_next_perp[w_curr]
             n_generated_words += 1
 
         sentence.append(w_curr)
         if w_curr == stop_symbol: break
         feed_dict = {model.input_placeholder: [w_curr], model.state: state}
 
-        # TODO: mayber verify this is correct
+        # TODO: maybe verify this is correct.
+        # We need to get the perplexity of the predicted word
         ops = [model.sentence_logits[-1], model.state, model.perplexity_op]
         w_next_logits, state, w_next_perp = sess.run(ops, feed_dict=feed_dict)
         p_w_next = tf.softmax(w_next_logits)
@@ -90,6 +94,7 @@ def run(sent_path, sess, gen_model, gen_size=20, append_bos=True):
 def load_sess(path):
     '''Load the session object from a pretrained model.
     '''
+    # TODO: load the tf.session object
     raise NotImplementedError
 
 class Config(object):
