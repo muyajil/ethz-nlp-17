@@ -1,6 +1,7 @@
 import os
 import sys
 import tensorflow as tf
+from lstm import Lstm
 
 def continue_sentence(sess, model, tokens, gen_size=20):
     '''Continue a sentence given list of tokens.
@@ -16,9 +17,7 @@ def continue_sentence(sess, model, tokens, gen_size=20):
         perplexity: average perplexity of predicted words
     '''
 
-    correct_config = model.config.batch_size = 1
-        and model.config.sentence_length = 1
-        and model.config.num_steps = 1
+    correct_config = model.config.batch_size == 1 and model.config.sentence_length == 1 and model.config.num_steps == 1
     assert correct_config, "Necessary: batch_size == sentence_length == num_steps == 1"
 
     state = model._get_initial_state().eval()
@@ -91,11 +90,11 @@ def run(sent_path, sess, gen_model, gen_size=20, append_bos=True):
         perplexity_list.append(perplexity)
     return sentence_list, perplexity_list
 
-def load_sess(path):
+def load_sess(sess, path):
     '''Load the session object from a pretrained model.
     '''
-    # TODO: load the tf.session object
-    raise NotImplementedError
+    saver = tf.train.Saver()
+    saver.restore(sess,tf.train.latest_checkpoint(path))
 
 class Config(object):
     """
@@ -135,8 +134,10 @@ if __name__ == '__main__':
         # load session from pretrained model
         # use learned parameters to complete the sentences
         init = tf.global_variables_initializer()
-        with load_sess(sess_path) as sess:
+        with tf.Session() as sess:
+            load_sess(sess, sess_path)
             sess.run(init)
             sentence_list = run(sent_path, sess, gen_model)
+            print(sentence_list)
     # TODO: format the output and write to file
 

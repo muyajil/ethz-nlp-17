@@ -74,9 +74,10 @@ class DataReader(object):
         self.cache_file = '/tmp/nlp-project-sentences-train.pickle'
         return
 
-    def parse_line(self, line):
+    def parse_line(self, line, sent_size):
         tokens = [self.vocab.encode(word) for word in line.split()]
         tokens = tokens[:sent_size - 2]
+        return tokens
 
     def construct(self, path, vocab_size, sent_size):
         '''Load vocabulary, mapping words to tokens, then load corpus as tokens.
@@ -96,12 +97,13 @@ class DataReader(object):
         nsents = sum(1 for line in open(path, 'r'))
 
             # add padding, bos, eos symbols
+        print(sent_size)
         self.data = np.empty((nsents, sent_size), dtype=int)
         self.data.fill(self.vocab.encode(self.vocab.padding))
         self.data[:, 0] = self.vocab.encode(self.vocab.begin)
         self.data[:, -1] = self.vocab.encode(self.vocab.end)
         for indx, line in enumerate(open(path, 'r')):
-            tokens = self.parse_line(line)
+            tokens = self.parse_line(line, sent_size)
             self.data[indx, 1:len(tokens)+1] = tokens
 
         #with open(self.cache_file, 'wb') as f:
