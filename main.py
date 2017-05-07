@@ -16,7 +16,8 @@ def main(config):
             losses = model.fit(sess, model.learning_data)
             model.test(sess, model.test_data)
             saver = tf.train.Saver()
-            saver.save(sess, 'models/rnn-language-model'+ str(time.time()))
+            model_name = 'models/rnn-language-model'+ str(time.time())
+            saver.save(sess, model_name)
 
 
 if __name__ == "__main__":
@@ -37,16 +38,19 @@ if __name__ == "__main__":
     args = PARSER.parse_args()
 
     config = Config()
-    config.batch_size = args.batch_size
-    config.state_size = args.hidden_state
-    config.embed_dim = args.embedding_size
-    config.vocab_size = args.vocab_size
-    config.sentence_length = args.seq_length
-    config.data_path = args.data_path
-    config.learning_rate = args.learning_rate
-    config.epochs = args.epochs
-    config.log_dir = args.summaries_dir
-    config.print_freq = args.print_every
-    config.embed_path = args.embed_path
-    config.down_project = args.down_project
-    config.submission_dir = args.submission_dir
+    if not args.predef:
+        config.batch_size = args.batch_size
+        config.state_size = args.hidden_state
+        config.embed_dim = args.embedding_size
+        config.vocab_size = args.vocab_size
+        config.sentence_length = args.seq_length
+        config.data_path = args.data_path
+        config.learning_rate = args.learning_rate
+        config.epochs = args.epochs
+        config.log_dir = args.summaries_dir
+        config.print_freq = args.print_every
+        config.embed_path = args.embed_path
+        config.down_project = args.down_project
+        config.submission_dir = args.submission_dir
+    main(config)
+    

@@ -1,7 +1,8 @@
 import time
+import os
 import numpy as np
 import tensorflow as tf
-#import gensim
+import gensim
 
 from model import LanguageModel
 from utils import DataReader
@@ -13,7 +14,7 @@ class Config(object):
     Holds model hyperparams and data information.
     """
     batch_size = 64
-    state_size = 512
+    state_size = 1024
     embed_dim = 100
     vocab_size = 20000
     sentence_length = 30
@@ -24,9 +25,9 @@ class Config(object):
     epochs = 1
     log_dir = "summaries"
     print_freq = 10
-    embed_path = None # pretrain: data/wordembeddings-dim100.word2vec
-    down_project = None
-    submission_dir = "submissions
+    embed_path = "data/wordembeddings-dim100.word2vec" # pretrain: data/wordembeddings-dim100.word2vec
+    down_project = 512
+    submission_dir = "submissions"
 
 
 def log(x, base=10):
@@ -180,7 +181,7 @@ class Lstm(LanguageModel):
         """
         sum_of_props = 0.0 # in fact, has shape (batch_size,) (checked)
         num_words_per_sentence = [self.config.sentence_length]*self.config.batch_size
-        for i in range(self.config.sentence_length-1):
+        for i in range(self.config.num_steps):
             ith_softmax = tf.nn.softmax(logits=sentence_logits[i]) # shape (batch_size, vocab_size) (checked)
 
             ith_probability = [] # will have shape (batch_size,) after the following loop (checked)
@@ -280,7 +281,7 @@ class Lstm(LanguageModel):
         # Need a sess.run call to assign pretrained embeddings to
         # self.embedding_placeholder
         losses = []
-        self.summary_writer = tf.summary.FileWriter(self.config.log_dir, graph=tf.get_default_graph())
+        self.summary_writer = tf.summary.FileWriter(os.path.join(self.config.log_dir, 'runC'), graph=tf.get_default_graph())
         print("starting training..")
         for epoch in range(self.config.epochs):
             start_time = time.time()
@@ -363,6 +364,6 @@ def generate_helper(sess, model, tokens, config):
             w_curr = tf.argmax(p_w_next)
         if w_curr == config.stop_symbol: break
         w_next_logits, state = _advance_single_state(sess, model, w_curr, state)
-        p_w_next = softmax(w_next_logits)
+        p_w_next = tf.softmax(w_next_logits)
     pass
 
