@@ -1,0 +1,171 @@
+import os
+import sys
+
+import numpy as np
+from collections import Counter
+from itertools import islice
+import pickle
+
+class Vocab(object):
+    def __init__(self):
+        '''Stores mappings between words (string) and tokens (integer).
+        '''
+        self.word_to_index = dict()
+        self.index_to_word = dict()
+        self.word_counter = Counter()
+
+        self.unknown = '<unk>'
+        self.padding = '<pad>'
+        self.begin = '<bos>'
+        self.end = '<eos>'
+
+    def update(self, sentence):
+        '''Update counts with words in sentence.
+        '''
+        if isinstance(sentence, str):
+            self.word_counter.update(sentence.split())
+        else:
+            assert isinstance(sentence[0], str)
+            self.word_counter.update(sentence)
+        return
+
+    def construct(self, path, vocab_size):
+        '''Construct a vocabulary from path, cutting infrequent words to given size.
+        '''
+        for line in open(path, 'r'):
+            self.update(line)
+        for key in [self.unknown, self.padding, self.begin, self.end]:
+            self._insert(key)
+        if vocab_size is None:
+            words = [w for (w, _) in self.word_counter.most_common()]
+        else:
+            words = [w for (w, _) in self.word_counter.most_common(vocab_size - 4)]
+        for w in words:
+            self._insert(w)
+        return
+
+    def _insert(self, word):
+        '''Stores word in the token maps.
+        '''
+        if not word in self.word_to_index:
+            index = len(self.word_to_index)
+            self.word_to_index[word] = index
+            self.index_to_word[index] = word
+        return
+
+    def encode(self, word):
+        '''Turn token word into integer index.
+        '''
+        try:
+            index = self.word_to_index[word]
+        except KeyError:
+            index = self.word_to_index[self.unknown]
+        return index
+
+    def decode(self, index):
+        '''Turn integer index into token word.
+        '''
+        return self.index_to_word[index]
+
+class DataReader(object):
+    def __init__(self, vocab):
+        self.vocab = vocab
+        self.encode_data = None
+        self.decode_data = None
+        self.nexchange = None
+        self.cache_file = '/tmp/nlp-project-sentences-train.pickle'
+        
+        self._pad_token = self.vocab.encode(self.vocab.padding)
+        self._bos_token = self.vocab.encode(self.vocab.begin)
+        self._eos_token = self.vocab.encode(self.vocab.end)
+        return
+
+    def construct(self, path, sent_size):
+        '''Load vocabulary, mapping words to tokens, then load corpus as tokens.
+        '''
+        #if os.path.isfile(self.cache_file):
+        #    print('loading cached data from: %s' % self.cache_file)
+        #    with open(self.cache_file, 'rb') as f:
+        #        self.data, self.vocab = pickle.load(f)
+        #else:
+
+        print('constructing data set')
+
+            # second pass to load corpus as tokens
+        self.nexchange = 2 * sum(1 for line in open(path, 'r'))
+
+            # add padding, bos, eos symbols
+        self.encode_data = np.empty((self.nexchange, sent_size), dtype=int)
+        self.decode_data = np.empty((self.nexchange, sent_size), dtype=int)
+        self.encode_data.fill(self._pad_token)
+        self.decode_data.fill(self._pad_token)
+
+        for indx, line in enumerate(open(path, 'r')):
+            a, b, c = self.process_line(line, sent_size)
+            self.encode_data[2 * indx, :len(a)] = a
+            self.decode_data[2 * indx, :len(b)] = b
+            self.encode_data[2 * indx + 1, :len(b)] = b
+            self.decode_data[2 * indx + 1, :len(c)] = c
+
+        #with open(self.cache_file, 'wb') as f:
+        #    pickle.dump((self.data, self.vocab), f)
+        print('caching data set here: %s' % self.cache_file)
+                
+        return
+
+    def _encode_str(self, text, sent_size):
+        encode_sent = [self._bos_token]
+        for i, word in enumerate(text.split()):
+            if i == sent_size - 2: break
+            encode_sent.append(self.vocab.encode(word))
+        encode_sent.append(self._eos_token)
+        assert len(encode_sent) <= sent_size
+        return encode_sent
+
+    def process_line(self, line, sent_size):
+        raw_a, raw_b, raw_c = line.strip().split('\t')
+        encode_a = self._encode_str(raw_a, sent_size)
+        encode_b = self._encode_str(raw_b, sent_size)
+        encode_c = self._encode_str(raw_c, sent_size)
+        return encode_a, encode_b, encode_c
+
+    def _shuffle(self):
+        '''Shuffle the rows of self.data.
+        '''
+        assert self.encode_data is not None
+        assert self.decode_data is not None
+        perm = np.random.permutation(self.encode_data.shape[0])
+        assert perm.size == len(self.encode_data) == len(self.decode_data)
+        self.encode_data = self.encode_data[perm]
+        self.decode_data = self.decode_data[perm]
+        return
+
+    def get_iterator(self, batch_size, shuffle=True):
+        '''Iterator yielding batch number, batch_size sentences.
+        '''
+        if shuffle:
+            order = np.random.permutation(self.nexchange)
+        else:
+            order = np.arange(self.nexchange)
+        counter = 0
+        while True:
+            batch_indices = islice(order, batch_size*counter, batch_size*(counter+1))
+            batch_indices = list(batch_indices)
+            if len(batch_indices) == 0: return
+            if len(batch_indices) < batch_size:
+                nmissing = batch_size - len(batch_indices)
+                batch_indices.extend(np.random.choice(self.nexchange, nmissing))
+            yield counter, self.encode_data[batch_indices], self.decode_data[batch_indices]
+            counter += 1
+
+class SubmissionGenerator(object):
+
+    def __init__(self, submission_folder):
+        self.filename = os.path.join(submission_folder, 'group29.perplexity')
+
+    def append_perplexities(self, perplexities):
+        with open(self.filename, 'a') as file:
+            for perplexity in perplexities[0]:
+                file.write(str(perplexity)+'\n')
+            file.close()
+        print('Appended perplexities to ' + str(self.filename))
