@@ -38,6 +38,7 @@ class Seq2SeqModel(object):
   TODO: bucketing
   TODO: sampled softmax
   TODO: attention
+  TODO: Option for forward_only
   """
 
 def __init__(self,
@@ -49,6 +50,7 @@ def __init__(self,
              learning_rate,
              learning_rate_decay_factor,
              max_sentence_length,
+             forward_only=False,
              dtype=tf.float32)
     """Create the model.
 
@@ -63,7 +65,9 @@ def __init__(self,
       learning_rate: learning rate to start with.
       learning_rate_decay_factor: decay learning rate by this much when needed.
       max_sentence_length: maximum sentence length that will be processed
+      forward_only: if set, we do not construct the backward pass in the model.
     """
+    self.sentence_length = max_sentence_length
     self.vocab_size = vocab_size
     self.batch_size = batch_size
     self.learning_rate = tf.Variable(
@@ -108,20 +112,79 @@ def __init__(self,
         for i in range(len(self.decoder_inputs) - 1)]
 
     all_inputs = encoder_inputs + decoder_inputs + targets + weights
-    with ops.name_scope(name, "model_with_buckets", all_inputs):
+    with ops.name_scope(name, "model", all_inputs):
         with variable_scope.variable_scope(variable_scope.get_variable_scope()):
-            self.outputs, _ = seq2seq_f(encoder_inputs, decoder_inputs, False)
-            self.losses = seq2seq.sequence_loss_by_example(outputs, targets, weights,
-                softmax_loss_function=None)
+            self.outputs, _ = seq2seq_f(encoder_inputs, decoder_inputs, forward_only)
+            self.losses = seq2seq.sequence_loss_by_example(outputs, targets,
+                    weights, softmax_loss_function=None)
 
-    params = tf.trainable_variables()  
-    opt = tf.train.GradientDescentOptimizer(self.learning_rate)
-    gradients = tf.gradients(self.losses, params)
-    clipped_gradients, self.gradient_norm = tf.clip_by_global_norm(gradients,
+    params = tf.trainable_variables()
+
+    if not forward_only:
+        opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+        gradients = tf.gradients(self.losses, params)
+        clipped_gradients, self.gradient_norm = tf.clip_by_global_norm(gradients,
                                                        max_gradient_norm)
-    self.update = opt.apply_gradients(
-          zip(clipped_gradients, params), global_step=self.global_step)
+        self.update = opt.apply_gradients(
+              zip(clipped_gradients, params), global_step=self.global_step)
+
     self.saver = tf.train.Saver(tf.global_variables())
+
+
+def step(self, session, encoder_inputs, decoder_inputs, target_weights, forward_only):
+    """Run a step of the model feeding the given inputs.
+    Args:
+      session: tensorflow session to use.
+      encoder_inputs: list of numpy int vectors to feed as encoder inputs.
+      decoder_inputs: list of numpy int vectors to feed as decoder inputs.
+      target_weights: list of numpy float vectors to feed as target weights.
+      forward_only: whether to do the backward step or only forward.
+    Returns:
+      A triple consisting of gradient norm (or None if we did not do backward),
+      average perplexity, and the outputs.
+    Raises:
+      ValueError: if length of encoder_inputs, decoder_inputs, or
+        target_weights disagrees with max_sentence_length.
+    """
+    # Check if the sizes match.
+    if len(encoder_inputs) != self.sentence_length:
+        raise ValueError("Encoder length must be equal to max_sentence_length,"
+                       " %d != %d." % (len(encoder_inputs), self.sentence_length))
+    if len(decoder_inputs) != self.sentence_length:
+        raise ValueError("Decoder length must be equal to max_sentence_length,"
+                       " %d != %d." % (len(decoder_inputs), self.sentence_length))
+    if len(target_weights) != self.sentence_length:
+        raise ValueError("Weights length must be equal to max_sentence_length,"
+                       " %d != %d." % (len(target_weights), self.sentence_length))
+
+    # Input feed: encoder inputs, decoder inputs, target_weights, as provided.
+    input_feed = {}
+    for l in xrange(self.sentence_length):
+      input_feed[self.encoder_inputs[l].name] = encoder_inputs[l]
+      input_feed[self.decoder_inputs[l].name] = decoder_inputs[l]
+      input_feed[self.target_weights[l].name] = target_weights[l]
+
+    # Since our targets are decoder inputs shifted by one, we need one more.
+    last_target = self.decoder_inputs[decoder_size].name
+    input_feed[last_target] = np.zeros([self.batch_size], dtype=np.int32)
+
+    # Output feed: depends on whether we do a backward step or not.
+    if not forward_only:
+      output_feed = [self.update,  # Update Op that does SGD.
+                     self.gradient_norm,  # Gradient norm.
+                     self.losses]  # Loss for this batch.
+    else:
+      output_feed = [self.losses]  # Loss for this batch.
+      for l in xrange(self.sentence_length):  # Output logits.
+        output_feed.append(self.outputs[l])
+
+    outputs = session.run(output_feed, input_feed)
+    if not forward_only:
+      return outputs[1], outputs[2], None  # Gradient norm, loss, no outputs.
+    else:
+      return None, outputs[0], outputs[1:]  # No gradient norm, loss, outputs.
+
+
 
 
 
