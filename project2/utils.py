@@ -6,6 +6,8 @@ from collections import Counter
 from itertools import islice
 import pickle
 
+# TODO: Make modifying the encode/decoder preproc in data reader easy to modify
+
 class Vocab(object):
     def __init__(self):
         '''Stores mappings between words (string) and tokens (integer).
@@ -80,7 +82,7 @@ class DataReader(object):
         self._eos_token = self.vocab.encode(self.vocab.end)
         return
 
-    def construct(self, path, sent_size):
+    def construct(self, path, sent_size, vocab_size=None):
         '''Load vocabulary, mapping words to tokens, then load corpus as tokens.
         '''
         #if os.path.isfile(self.cache_file):
@@ -91,8 +93,17 @@ class DataReader(object):
 
         print('constructing data set')
 
+        if vocab_size is None:
+            self.vocab = Vocab()
+            self.vocab.construct(path, vocab_size)
+        else:
+            assert self.vocab is not None, "Vocabulary must be given"
+
+
+
             # second pass to load corpus as tokens
         self.nexchange = 2 * sum(1 for line in open(path, 'r'))
+        self.sent_size = sent_size
 
             # add padding, bos, eos symbols
         self.encode_data = np.empty((self.nexchange, sent_size), dtype=int)
@@ -101,11 +112,21 @@ class DataReader(object):
         self.decode_data.fill(self._pad_token)
 
         for indx, line in enumerate(open(path, 'r')):
-            a, b, c = self.process_line(line, sent_size)
-            self.encode_data[2 * indx, :len(a)] = a
-            self.decode_data[2 * indx, :len(b)] = b
-            self.encode_data[2 * indx + 1, :len(b)] = b
-            self.decode_data[2 * indx + 1, :len(c)] = c
+            a, b, c = self._tokenize_line(line)
+
+            encode_first_tkns = self.preproc_encode_input(a, sent_size)
+            encode_second_tkns = self.preproc_encode_input(b, sent_size)
+            decode_first_tkns = self.preproc_decode_input(b, sent_size)
+            decode_second_tkns = self.preproc_decode_input(c, sent_size)
+
+            first_indx = 2 * indx
+            second_indx = 2 * indx + 1
+
+                # Encode has padding at start, Decode has padding at end
+            self.encode_data[first_indx, -len(encode_first_tkns): ] = encode_first_tkns
+            self.decode_data[first_indx, :len(decode_first_tkns)] = decode_first_tkns
+            self.encode_data[second_indx, -len(encode_second_tkns)] = encode_second_tkns
+            self.decode_data[second_indx, :len(decode_second_tkns)] = decode_second_tkns
 
         #with open(self.cache_file, 'wb') as f:
         #    pickle.dump((self.data, self.vocab), f)
@@ -113,20 +134,34 @@ class DataReader(object):
                 
         return
 
-    def _encode_str(self, text, sent_size):
-        encode_sent = [self._bos_token]
-        for i, word in enumerate(text.split()):
-            if i == sent_size - 2: break
-            encode_sent.append(self.vocab.encode(word))
-        encode_sent.append(self._eos_token)
-        assert len(encode_sent) <= sent_size
+    def preproc_encode_input(self, tokens, max_sent_size):
+        '''Preprocess the encoder input tokens (e.g. reverse).
+        '''
+        if not max_sent_size is None:
+            tokens = tokens[:max_sent_size]
+        encode_tokens = tokens[::-1]
+        return encode_tokens
+
+    def preproc_decode_input(self, tokens, max_sent_size):
+        '''Preprocess the decoder input tokens (e.g. add bos/eos tokens).
+        '''
+        decode_tokens = [self._bos_token]
+        decode_tokens.extend(tokens)
+        decode_tokens = decode_tokens[:max_sent_size - 1]
+        decode_tokens.append(self._eos_token)
+        return decode_tokens
+
+    def _encode_str(self, text):
+        '''Encode string into token representation.
+        '''
+        encode_sent = [self.vocab.encode(word) for word in text.split()]
         return encode_sent
 
-    def process_line(self, line, sent_size):
+    def _tokenize_line(self, line):
         raw_a, raw_b, raw_c = line.strip().split('\t')
-        encode_a = self._encode_str(raw_a, sent_size)
-        encode_b = self._encode_str(raw_b, sent_size)
-        encode_c = self._encode_str(raw_c, sent_size)
+        encode_a = self._encode_str(raw_a)
+        encode_b = self._encode_str(raw_b)
+        encode_c = self._encode_str(raw_c)
         return encode_a, encode_b, encode_c
 
     def _shuffle(self):
@@ -169,3 +204,20 @@ class SubmissionGenerator(object):
                 file.write(str(perplexity)+'\n')
             file.close()
         print('Appended perplexities to ' + str(self.filename))
+
+def self_test(path=None):
+    vocab = Vocab()
+    vocab.construct(path, 20000)
+    data = DataReader(vocab)
+    data.construct(path, 30)
+    import ipdb; ipdb.set_trace()
+
+if __name__ == '__main__':
+    try:
+        path = sys.argv[1]
+    except IndexError:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'project_2', 'Training_Shuffled_Dataset.txt')
+    self_test(path)
+    
+
+
