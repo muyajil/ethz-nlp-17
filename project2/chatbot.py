@@ -30,8 +30,8 @@ import time
 import math
 
 #TODO: remove magic numbers
-vocab_size = 40000
-max_sentence_length = 50
+vocab_size = 20000
+max_sentence_length = 15
 data_path = "./data/Training_Shuffled_Dataset.txt"
 
 # Model parameters
@@ -67,8 +67,8 @@ FLAGS = tf.app.flags.FLAGS
 
 def create_model(session, forward_only):
     """Create translation model and initialize or load parameters in session."""
-    dtype = tf.float16 if FLAGS.use_fp16 else tf.float32
-    model = model.Seq2SeqModel(
+    dtype = tf.float32 # dtype for the encoder initial state 
+    model = Seq2SeqModel(
         FLAGS.vocab_size,
         FLAGS.size,
         FLAGS.num_layers,
@@ -97,8 +97,9 @@ def train():
     to_dev = None
 
     data_reader = DataReader()
-    data_reader.construct(data_path, vocab_size, max_sentence_length)
+    data_reader.construct(data_path, vocab_size=vocab_size, sent_size=max_sentence_length)
     
+
     with tf.Session() as sess:
 
         # Create model.
@@ -110,15 +111,18 @@ def train():
         current_step = 0
         previous_losses = []
 
-        while True:
-            start_time = time.time()
+        start_time = time.time()
 
         for (i, encoder_inputs, decoder_inputs) in data_reader.get_iterator(FLAGS.batch_size):
 
+            print(i)
+            encoder_inputs = encoder_inputs.T
+            decoder_inputs = decoder_inputs.T
+
             start_time = time.time()
-            target_weights = [1. * len(decoder_inputs)]
+            target_weights = [1.] * len(decoder_inputs)
             _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
-                                   target_weights, bucket_id, False)
+                                   target_weights, False)
 
             step_time += (time.time() - start_time) / FLAGS.steps_per_checkpoint
             loss += step_loss / FLAGS.steps_per_checkpoint
@@ -154,7 +158,7 @@ def decode():
 
         # TODO: Load vocabulary.
         data = DataReader()
-        data_reader.construct(data_path, vocab_size, max_sentence_length)
+        data_reader.construct(data_path, vocab_size=vocab_size, sent_size=max_sentence_length)
 
         # Decode from standard input.
         sys.stdout.write("> ")
@@ -196,11 +200,14 @@ def self_test():
 
 def main(_):
     if FLAGS.self_test:
-      self_test()
+        print("Running test")
+        self_test()
     elif FLAGS.decode:
-      decode()
+        print("Running decode")
+        decode()
     else:
-      train()
+        print("Running train")
+        train()
 
 if __name__ == "__main__":
     tf.app.run()

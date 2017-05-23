@@ -34,6 +34,9 @@ class Vocab(object):
     def construct(self, path, vocab_size):
         '''Construct a vocabulary from path, cutting infrequent words to given size.
         '''
+
+        print("Constructing vocabulary using:\n  Path: %s\n  Vocab size: %d" %(os.path.abspath(path), vocab_size))
+
         for line in open(path, 'r'):
             self.update(line)
         for key in [self.unknown, self.padding, self.begin, self.end]:
@@ -70,13 +73,16 @@ class Vocab(object):
         return self.index_to_word[index]
 
 class DataReader(object):
-    def __init__(self, vocab):
+    def __init__(self, vocab=None):
         self.vocab = vocab
+        if not vocab is None: self._store_tokens()
         self.encode_data = None
         self.decode_data = None
         self.nexchange = None
         self.cache_file = '/tmp/nlp-project-sentences-train.pickle'
-        
+        return
+
+    def _store_tokens(self):
         self._pad_token = self.vocab.encode(self.vocab.padding)
         self._bos_token = self.vocab.encode(self.vocab.begin)
         self._eos_token = self.vocab.encode(self.vocab.end)
@@ -91,25 +97,21 @@ class DataReader(object):
         #        self.data, self.vocab = pickle.load(f)
         #else:
 
-        print('constructing data set')
 
-        if vocab_size is None:
+        if not vocab_size is None:
             self.vocab = Vocab()
             self.vocab.construct(path, vocab_size)
+            self._store_tokens()
         else:
-            assert self.vocab is not None, "Vocabulary must be given"
-
-
+            assert not self.vocab is None, "Vocabulary must be given"
 
             # second pass to load corpus as tokens
         self.nexchange = 2 * sum(1 for line in open(path, 'r'))
         self.sent_size = sent_size
-
             # add padding, bos, eos symbols
-        self.encode_data = np.empty((self.nexchange, sent_size), dtype=int)
-        self.decode_data = np.empty((self.nexchange, sent_size), dtype=int)
-        self.encode_data.fill(self._pad_token)
-        self.decode_data.fill(self._pad_token)
+        self.encode_data = np.full((self.nexchange, sent_size), self._pad_token, dtype=int)
+        self.decode_data = np.full((self.nexchange, sent_size), self._pad_token, dtype=int)
+        print("Reading & tokenizing using:\n  Path: %s\n  Sentence size: %s" %(os.path.abspath(path), sent_size))
 
         for indx, line in enumerate(open(path, 'r')):
             a, b, c = self._tokenize_line(line)
@@ -130,7 +132,7 @@ class DataReader(object):
 
         #with open(self.cache_file, 'wb') as f:
         #    pickle.dump((self.data, self.vocab), f)
-        print('caching data set here: %s' % self.cache_file)
+        #print('caching data set here: %s' % self.cache_file)
                 
         return
 
@@ -222,10 +224,7 @@ def self_test(path=None):
 
 
 if __name__ == '__main__':
-    try:
-        path = sys.argv[1]
-    except IndexError:
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'project_2', 'Training_Shuffled_Dataset.txt')
+    path = sys.argv[1]
     self_test(path)
     
 
