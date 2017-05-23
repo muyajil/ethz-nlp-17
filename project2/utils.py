@@ -125,7 +125,7 @@ class DataReader(object):
                 # Encode has padding at start, Decode has padding at end
             self.encode_data[first_indx, -len(encode_first_tkns): ] = encode_first_tkns
             self.decode_data[first_indx, :len(decode_first_tkns)] = decode_first_tkns
-            self.encode_data[second_indx, -len(encode_second_tkns)] = encode_second_tkns
+            self.encode_data[second_indx, -len(encode_second_tkns):] = encode_second_tkns
             self.decode_data[second_indx, :len(decode_second_tkns)] = decode_second_tkns
 
         #with open(self.cache_file, 'wb') as f:
@@ -209,8 +209,17 @@ def self_test(path=None):
     vocab = Vocab()
     vocab.construct(path, 20000)
     data = DataReader(vocab)
-    data.construct(path, 30)
-    import ipdb; ipdb.set_trace()
+    data.construct(path, 15)
+    with open(path, 'r') as fin:
+        first_line = fin.readline().strip().split('\t')
+    print("Raw encode input: %s" %first_line[0])
+    print("       Processed: %s" %" ".join([vocab.decode(x) for x in data.encode_data[0]]))
+    print("")
+    print("Raw decode input: %s" %first_line[1])
+    print("       Processed: %s" %" ".join([vocab.decode(x) for x in data.decode_data[0]]))
+    return
+
+
 
 if __name__ == '__main__':
     try:
