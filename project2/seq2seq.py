@@ -17,11 +17,17 @@
 # 
 # ==============================================================================
 
+
+import copy
 import tensorflow as tf
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import variable_scope
+from tensorflow.contrib.rnn.python.ops import core_rnn
+from tensorflow.contrib.rnn.python.ops import core_rnn_cell
+from tensorflow.python.framework import ops
 
 def _extract_argmax_and_embed(embedding,
                               output_projection=None,

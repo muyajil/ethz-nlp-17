@@ -25,7 +25,7 @@ the current checkpoint has a conversation.
 import numpy as np
 import tensorflow as tf
 from utils import DataReader
-import model
+from model import Seq2SeqModel
 import time
 import math
 
@@ -188,12 +188,11 @@ def self_test():
         print("Self-test for the model.")
     
         # Create model with vocabularies of 10, 2 layers of 32.
-        model = model.Seq2SeqModel(10, 32, 2, 5.0, 2, 0.3, 0.99, 30)
+        model = Seq2SeqModel(10, 32, 2, 5.0, 2, 0.3, 0.99, 2)
         sess.run(tf.global_variables_initializer())
-        data_set = [([1, 1], [2, 2]), ([3, 3], [4]), ([5], [6])]
         for _ in range(5):
-            model.step(sess, [[1, 1], [3, 3], [5]],
-                [[2, 2], [4], [6]], [[1., 1., 1.]], False)
+            model.step(sess, [[1, 3, 5] , [1, 3, 3]],
+                [[1, 3, 5] , [1, 3, 3]], [1., 1.], False)
 
 def main(_):
     if FLAGS.self_test:
