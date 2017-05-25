@@ -43,7 +43,7 @@ tf.app.flags.DEFINE_float("max_gradient_norm", 5.0,
 tf.app.flags.DEFINE_integer("batch_size", 64,
                             "Batch size to use during training.")
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
-tf.app.flags.DEFINE_integer("num_layers", 3, "Number of layers in the model.")
+tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
 tf.app.flags.DEFINE_integer("vocab_size", vocab_size, "Vocabulary size.")
 
 # Data locations (TODO: adapt to our situation)
@@ -120,7 +120,7 @@ def train():
             decoder_inputs = decoder_inputs.T
 
             start_time = time.time()
-            target_weights = [1.] * len(decoder_inputs)
+            target_weights = np.ones_like(decoder_inputs)
             _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
                                    target_weights, False)
 
@@ -173,6 +173,7 @@ def decode():
             decoder_input = [data.vocab.begin] # Here should be the GO! tag
 					   # I treat BOS tag as GO tag here
             target_weights = [0.]
+
             # TODO: padding and tagging for encoder_input 
 
             _, _, output_logits = model.step(sess, encoder_input, decoder_input,
