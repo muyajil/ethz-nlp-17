@@ -182,7 +182,6 @@ class Seq2SeqModel(object):
             output_feed = [self.losses]  # Loss for this batch.
             for l in range(self.sentence_length):  # Output logits.
                 output_feed.append(self.outputs[l])
-
         outputs = session.run(output_feed, input_feed)
         if not forward_only:
             return outputs[1], outputs[2], None  # Gradient norm, loss, no outputs.
