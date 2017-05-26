@@ -28,6 +28,8 @@ from utils import DataReader
 from model import Seq2SeqModel
 import time
 import math
+import os
+import sys
 
 #TODO: remove magic numbers
 vocab_size = 20000
@@ -45,6 +47,7 @@ tf.app.flags.DEFINE_integer("batch_size", 64,
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
 tf.app.flags.DEFINE_integer("vocab_size", vocab_size, "Vocabulary size.")
+tf.app.flags.DEFINE_integer("num_epochs", 10, "Number of epochs")
 
 # Data locations (TODO: adapt to our situation)
 tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
@@ -113,40 +116,53 @@ def train():
 
         start_time = time.time()
 
-        for (i, encoder_inputs, decoder_inputs) in data_reader.get_iterator(FLAGS.batch_size):
+        for epoch in range(FLAGS.num_epochs):
+            for (i, encoder_inputs, decoder_inputs) in data_reader.get_iterator(FLAGS.batch_size):
 
-            print(i)
-            encoder_inputs = encoder_inputs.T
-            decoder_inputs = decoder_inputs.T
+                #print(i)
+                encoder_inputs = encoder_inputs.T
+                decoder_inputs = decoder_inputs.T
 
-            start_time = time.time()
-            target_weights = np.ones_like(decoder_inputs)
-            _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
-                                   target_weights, False)
+                start_time = time.time()
+                target_weights = np.ones_like(decoder_inputs)
+                _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
+                                    target_weights, False)
 
-            step_time += (time.time() - start_time) / FLAGS.steps_per_checkpoint
-            loss += step_loss / FLAGS.steps_per_checkpoint
-            current_step += 1
+                step_time += (time.time() - start_time) / FLAGS.steps_per_checkpoint
+                loss += step_loss / FLAGS.steps_per_checkpoint
+                current_step += 1
 
-            # Once in a while, we save checkpoint and print statistics.
-            if current_step % FLAGS.steps_per_checkpoint == 0:
-                perplexity = math.exp(float(loss)) if loss < 300 else float("inf")
-                print ("global step %d learning rate %.4f step-time %.2f perplexity "
-                    "%.2f" % (model.global_step.eval(), model.learning_rate.eval(),
-                         step_time, perplexity))
+                # Once in a while, we save checkpoint and print statistics.
+                if current_step % FLAGS.steps_per_checkpoint == 0:
+                    perplexity = 0.0
+                    if np.mean(loss) < 300:
+                        perplexity = np.exp(np.mean(loss))
+                    else:
+                        perplexity = float("inf")
+                    print (
+                        "epoch %d\t\t| global step %d\t| learning rate %.4f\t| step-time %.2f\t| perplexity %.2f\t| mean loss %.2f " % 
+                            (
+                                epoch+1,
+                                model.global_step.eval(), 
+                                model.learning_rate.eval(),
+                                step_time, 
+                                perplexity, 
+                                np.mean(loss)
+                            )
+                        )
 
-                # Decrease learning rate if no improvement was seen over last 3 times.
-                if len(previous_losses) > 2 and loss > max(previous_losses[-3:]):
-                    sess.run(model.learning_rate_decay_op)
+                    # Decrease learning rate if no improvement was seen over last 3 times.
+                    if len(previous_losses) > 2 and np.mean(loss) > max(list(map(lambda x: np.mean(x), previous_losses[-3:]))):
+                        sess.run(model.learning_rate_decay_op)
 
-                previous_losses.append(loss)
+                    previous_losses.append(loss)
 
-                # Save checkpoint and zero timer and loss.
-                checkpoint_path = os.path.join(FLAGS.train_dir, "chatbot.ckpt")
-                model.saver.save(sess, checkpoint_path, global_step=model.global_step)
+                    # Save checkpoint and zero timer and loss.
+                    checkpoint_path = os.path.join(FLAGS.train_dir, "chatbot.ckpt")
+                    model.saver.save(sess, checkpoint_path, global_step=model.global_step)
 
-                step_time, loss = 0.0, 0.0
-                sys.stdout.flush()
+                    step_time, loss = 0.0, 0.0
+                    sys.stdout.flush()
 
 
 def decode():
