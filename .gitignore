@@ -8,3 +8,5 @@ Project1/*
 project2/data/*
 
 project2/__pycache__/
+
+project2/checkpoints/
