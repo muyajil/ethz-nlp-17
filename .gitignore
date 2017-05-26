@@ -6,3 +6,5 @@ summaries/*
 models/*
 Project1/*
 project2/data/*
+
+project2/__pycache__/
