@@ -62,9 +62,6 @@ class Seq2seq(object):
         self.decoder_prediction = tf.argmax(self.decoder_logits, 2)
 
         # Training/Loss ops
-        self.loss = google_code.sequence_loss_by_example(self.decoder_logits,
-                self.decoder_targets, self.target_weights[:max_sentence_length],
-                softmax_loss_function=None)
         self.stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.decoder_logits)
