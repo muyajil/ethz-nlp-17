@@ -47,7 +47,7 @@ tf.app.flags.DEFINE_integer("batch_size", 64,
 tf.app.flags.DEFINE_integer("size", 1024, "Size of each model layer.")
 tf.app.flags.DEFINE_integer("num_layers", 1, "Number of layers in the model.")
 tf.app.flags.DEFINE_integer("vocab_size", vocab_size, "Vocabulary size.")
-tf.app.flags.DEFINE_integer("num_epochs", 10, "Number of epochs")
+tf.app.flags.DEFINE_integer("num_epochs", 20, "Number of epochs")
 
 # Data locations (TODO: adapt to our situation)
 tf.app.flags.DEFINE_string("data_dir", "/tmp", "Data directory")
@@ -140,7 +140,7 @@ def train():
                     else:
                         perplexity = float("inf")
                     print (
-                        "epoch %d\t\t| global step %d\t| learning rate %.4f\t| step-time %.2f\t| perplexity %.2f\t| mean loss %.2f " % 
+                        "epoch %d \t| global step %d\t| learning rate %.4f\t| step-time %.2f\t| perplexity %.2f\t| mean loss %.2f " % 
                             (
                                 epoch+1,
                                 model.global_step.eval(), 
