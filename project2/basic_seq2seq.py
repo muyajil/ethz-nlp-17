@@ -44,8 +44,8 @@ class Seq2seq(object):
         # Parameters/Placeholders
         self.config = config
         self.add_placeholders()
-        #self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
-        self.weights = tf.ones(shape=self.decoder_targets.get_shape())
+        self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
+        #self.weights = tf.ones(shape=self.decoder_targets.get_shape())
         self._encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
         self._decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.decoder_hidden_units)
 
@@ -84,7 +84,7 @@ class Seq2seq(object):
         
         with tf.variable_scope('optimizer', reuse=None) as scope:
             self.adam = tf.train.AdamOptimizer()
-            self.train_op = self.adam.minimize(self.average_batch_log_perp_loss)
+            self.train_op = self.adam.minimize(self.loss)
             #self.optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
             #self.gvs = self.optimizer.compute_gradients(self.stepwise_cross_entropy)
             #self.capped_gvs = [(tf.clip_by_value(grad, -15, 15), var) for grad, var in self.gvs]
