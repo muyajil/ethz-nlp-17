@@ -2,8 +2,11 @@
 # DONE: read in meta info (utils.MetaReader)
 # DONE: add genre tags to utils.Vocab
 # DONE: extend utils.DataReader.get_iterator to interate over genre, adding genre tokens to feed_dict
-# TODO: overwrite Model._get_bos_embedded to give tokens from feed_dict
-# TODO: overwrite Model.step to deal with the genre tag properly
+# DONE: overwrite Model._get_bos_embedded to give tokens from feed_dict
+# DONE: overwrite Model.step to deal with the genre tag properly
+# TODO: version that has "<bos> <GENRE>" as inputs
+#       think how to do this with the generator
+#       _loop_fn_initial() -> _loop_fn_secondary() -> _loop_fn_transition()?
 
 import os
 import sys
@@ -69,14 +72,7 @@ class GenreBosSeq2Seq(LanguageSeq2Seq):
         '''
         return self.data_reader.get_iterator(self.config.batch_size, meta_tokens='most_common')
 
-
-    def step(self, sess, inputs, epoch=0):
-        '''Run model for a single batch.
-        '''
-        if not hasattr(self, 'loss_track'): self.loss_track = list()
-        if not hasattr(self.config, 'batches_per_epoch'):
-            self.config.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
-
+    def construct_feed_dict(self, inputs):
         batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, genre_tags_ = inputs
         decoder_inputs_[:, 0] = genre_tags_
 
@@ -86,15 +82,7 @@ class GenreBosSeq2Seq(LanguageSeq2Seq):
                      self.decoder_inputs: decoder_inputs_.T,
                      self.decoder_targets: decoder_targets_.T,
                      self.genre_tags: genre_tags_}
-        _, batch_log_perp = sess.run([self.train_op, self.batch_log_perp_loss], feed_dict)
-        batch_avg_log_perp = batch_log_perp.mean()
-        batch_perplexity = np.exp(batch_avg_log_perp)
-        self.loss_track.append(batch_perplexity)
-        print(self._status(epoch, batch_id, batch_start), end='\r')
-
-        if batch_id % self.config.steps_per_checkpoint == 0:
-            self._checkpoint(sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict)
-        return
+        return feed_dict
 
 if __name__ == '__main__':
     tf.reset_default_graph()
