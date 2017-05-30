@@ -12,7 +12,7 @@ class Config(object):
     embed_dim = encode_embed_dim = decode_embed_dim = 5
     encoder_hidden_units = decoder_hidden_units = 7
     batch_size = 5
-    sequence_length = decode_sequence_length = encode_sequence_length = 10
+    sequence_length = decoder_sequence_length = encoder_sequence_length = 10
     learning_rate = .0001
 
 class Seq2seq(object):
@@ -44,6 +44,8 @@ class Seq2seq(object):
         # Parameters/Placeholders
         self.config = config
         self.add_placeholders()
+        #self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
+        self.weights = tf.ones(shape=self.decoder_targets.get_shape())
         self._encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
         self._decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.decoder_hidden_units)
 
@@ -58,6 +60,7 @@ class Seq2seq(object):
         # Decoder
         self.decoder_outputs, self.decoder_final_state = \
             self.add_decoder_rnn(self.decoder_inputs_embedded, self.encoder_final_state_augmented)
+        # shape: decoder_sequence_length x batch_size x decoder_vocab
         self.decoder_logits = self.project_onto_decoder_vocab(self.decoder_outputs)
         self.decoder_prediction = tf.argmax(self.decoder_logits, 2)
 
@@ -66,6 +69,11 @@ class Seq2seq(object):
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.decoder_logits)
         self.loss = tf.reduce_mean(self.stepwise_cross_entropy)
+        self.batch_log_perp_loss = google_code.sequence_loss_by_example(
+            tf.unstack(self.decoder_logits), # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
+            tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
+            tf.unstack(self.weights))# list of 1D tensors (batch_size), len=decoder_sequence_length
+        self.average_batch_log_perp_loss = tf.reduce_mean(self.batch_log_perp_loss)
 
         # op for generating sequences
         self.generated_preds, self.generated_logits = self.generate()
@@ -76,7 +84,7 @@ class Seq2seq(object):
         
         with tf.variable_scope('optimizer', reuse=None) as scope:
             self.adam = tf.train.AdamOptimizer()
-            self.train_op = self.adam.minimize(self.loss)
+            self.train_op = self.adam.minimize(self.average_batch_log_perp_loss)
             #self.optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
             #self.gvs = self.optimizer.compute_gradients(self.stepwise_cross_entropy)
             #self.capped_gvs = [(tf.clip_by_value(grad, -15, 15), var) for grad, var in self.gvs]
@@ -91,13 +99,13 @@ class Seq2seq(object):
         '''
         # Inputs are sequence_length x batch_size !!
         self.encoder_inputs = tf.placeholder(dtype=tf.int32,
-            shape=(self.config.encode_sequence_length, self.config.batch_size),
+            shape=(self.config.encoder_sequence_length, self.config.batch_size),
             name='encoder_inputs')
         self.decoder_targets = tf.placeholder(dtype=tf.int32,
-            shape=(self.config.decode_sequence_length, self.config.batch_size),
+            shape=(self.config.decoder_sequence_length, self.config.batch_size),
             name='decoder_targets')
         self.decoder_inputs = tf.placeholder(dtype=tf.int32,
-            shape=(self.config.decode_sequence_length, self.config.batch_size),
+            shape=(self.config.decoder_sequence_length, self.config.batch_size),
             name='decoder_inputs')
         return
 
@@ -152,6 +160,15 @@ class Seq2seq(object):
 
         # Need to flatten batch tensor for multiplication
         decoder_max_steps, decoder_batch_size, decoder_dim = tf.unstack(tf.shape(decoder_outputs))
+        tf.assert_equal(decoder_max_steps, tf.constant(self.config.decoder_sequence_length))
+        tf.assert_equal(decoder_batch_size, tf.constant(self.config.batch_size))
+        tf.assert_equal(decoder_dim, tf.constant(self.config.decoder_hidden_units))
+
+        # Need to do this or else tensorflow forgets the shape of decoder_logits
+        decoder_max_steps = self.config.decoder_sequence_length
+        decoder_batch_size = self.config.batch_size
+        decoder_dim = self.config.decoder_hidden_units
+
         decoder_outputs_flat = tf.reshape(decoder_outputs, (-1, decoder_dim))
         decoder_logits_flat = tf.add(tf.matmul(decoder_outputs_flat, self.W), self.b)
         decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, self.config.vocab_size))
@@ -168,7 +185,7 @@ class Seq2seq(object):
         return pad_embedding
 
     def _loop_fn_initial(self):
-        initial_elements_finished = (0 >= self.config.decode_sequence_length)  # all False at the initial step
+        initial_elements_finished = (0 >= self.config.decoder_sequence_length)  # all False at the initial step
         initial_input = self._get_bos_embedded()
         initial_cell_state = self.encoder_final_state_augmented
         initial_cell_output = None
@@ -187,7 +204,7 @@ class Seq2seq(object):
 
     def _loop_fn_transition(self, time, previous_output, previous_state, previous_loop_state):
        
-        elements_finished = (time >= self.config.decode_sequence_length) # this operation produces boolean tensor of [batch_size]
+        elements_finished = (time >= self.config.decoder_sequence_length) # this operation produces boolean tensor of [batch_size]
                                                       # defining if corresponding sequence has ended
 
         finished = tf.reduce_all(elements_finished) # -> boolean scalar
@@ -246,7 +263,7 @@ def memorize_test():
     config.vocab_size = 10
     config.embed_dim = 7
     config.encoder_hidden_units = config.decoder_hidden_units = 20
-    config.sequence_length = config.decode_sequence_length = config.encode_sequence_length = 10
+    config.sequence_length = config.decoder_sequence_length = config.encoder_sequence_length = 10
     config.batch_size = 5
 
     tf.reset_default_graph()
@@ -316,8 +333,9 @@ if __name__ == '__main__':
     config.vocab_size = 10
     config.embed_dim = 7
     config.encoder_hidden_units = config.decoder_hidden_units = 20
-    config.sequence_length = config.decode_sequence_length = config.encode_sequence_length = 10
+    config.sequence_length = config.decoder_sequence_length = config.encoder_sequence_length = 9
     config.batch_size = 5
+    config.pad_symbol = 0
 
     tf.reset_default_graph()
 

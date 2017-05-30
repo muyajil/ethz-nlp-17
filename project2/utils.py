@@ -6,8 +6,23 @@ from collections import Counter
 from itertools import islice
 import pandas as pd
 import pickle
+import time
 
 # TODO: Make modifying the encode/decoder preproc in data reader easy to modify
+
+def get_curr_time():
+    return time.time()
+
+def estimate_time(start_time, end_time=None, multiplier=None):
+    if end_time is None: end_time = get_curr_time()
+    diff_time = end_time - start_time
+    if not multiplier is None: diff_time = diff_time * multiplier
+    return format_time(diff_time)
+
+def format_time(time_val):
+    m, s = divmod(time_val, 60)
+    h, m = divmod(m, 60)
+    return "%d:%02d:%02d" % (h, m, s)
 
 class Vocab(object):
     def __init__(self):
