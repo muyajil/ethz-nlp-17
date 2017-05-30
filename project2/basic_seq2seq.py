@@ -5,7 +5,8 @@ import sys
 import numpy as np
 import tensorflow as tf
 import utils
-import seq2seq as google_code
+from seq2seq import sequence_loss_by_example
+from math import ceil
 
 class Config(object):
     vocab_size = 10
@@ -43,9 +44,15 @@ class Seq2seq(object):
         '''
         # Parameters/Placeholders
         self.config = config
+        self._handle_config()
+
+
         self.add_placeholders()
-        self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
-        #self.weights = tf.ones(shape=self.decoder_targets.get_shape())
+        try:
+            self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
+        except AttributeError:
+            self.weights = tf.ones(self.decoder_targets.get_shape(), dtype=tf.float32)
+            
         self._encoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.encoder_hidden_units)
         self._decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.config.decoder_hidden_units)
 
@@ -69,7 +76,7 @@ class Seq2seq(object):
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.decoder_logits)
         self.loss = tf.reduce_mean(self.stepwise_cross_entropy)
-        self.batch_log_perp_loss = google_code.sequence_loss_by_example(
+        self.batch_log_perp_loss = sequence_loss_by_example(
             tf.unstack(self.decoder_logits), # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
             tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
             tf.unstack(self.weights))# list of 1D tensors (batch_size), len=decoder_sequence_length
@@ -81,18 +88,31 @@ class Seq2seq(object):
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.generated_logits)
         self.generated_loss = tf.reduce_mean(self.generated_stepwise_cross_entropy)
-        
+
+        # Ok to use adam and gradient clipping. These guys used lr=.001, clip at 200 (!)
+        # https://arxiv.org/pdf/1511.08400v7.pdf
         with tf.variable_scope('optimizer', reuse=None) as scope:
-            self.adam = tf.train.AdamOptimizer()
-            self.train_op = self.adam.minimize(self.loss)
-            #self.optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
-            #self.gvs = self.optimizer.compute_gradients(self.stepwise_cross_entropy)
-            #self.capped_gvs = [(tf.clip_by_value(grad, -15, 15), var) for grad, var in self.gvs]
-            #self.train_op = self.optimizer.apply_gradients(self.capped_gvs)
+            if (not hasattr(self.config, 'gradient_clip_value'))or self.config.gradient_clip_value is None:
+                self.adam = tf.train.AdamOptimizer()
+                self.train_op = self.adam.minimize(self.loss)
+            else:
+                clip = self.config.gradient_clip_value
+                self.optimizer = tf.train.AdamOptimizer()
+                self.gvs = self.optimizer.compute_gradients(self.stepwise_cross_entropy)
+                self.capped_gvs = [(tf.clip_by_value(grad, -clip, clip), var) for grad, var in self.gvs]
+                self.train_op = self.optimizer.apply_gradients(self.capped_gvs)
 
         self.saver = tf.train.Saver(tf.global_variables())
 
         return
+
+    def _handle_config(self):
+        '''Asserts, summary printing.
+        '''
+        if not os.path.exists(self.config.train_dir):
+            os.makedirs(self.config.train_dir)
+
+        assert os.path.exists(self.config.data_path)
 
     def add_placeholders(self):
         '''Adds the encode/decode input & decode label placeholders to the graph.
@@ -184,6 +204,25 @@ class Seq2seq(object):
         pad_embedding = tf.nn.embedding_lookup(self.embedding_table, pad_tokens)
         return pad_embedding
 
+    def generate(self):
+        '''Generate output from the encoder final hidden state.
+        
+        This code and all the _loop_fn* functions are implemented from:
+        https://github.com/ematvey/tensorflow-seq2seq-tutorials/blob/master/2-seq2seq-advanced.ipynb
+        '''
+        with tf.variable_scope('Decoder', reuse=True):
+            decoder_outputs_ta, decoder_final_state, _ = tf.nn.raw_rnn(self._decoder_cell, self._loop_fn)
+        decoder_outputs = decoder_outputs_ta.stack() 
+
+        decoder_max_steps, decoder_batch_size, decoder_dim = tf.unstack(tf.shape(decoder_outputs))
+        decoder_outputs_flat = tf.reshape(decoder_outputs, (-1, decoder_dim))
+        decoder_logits_flat = tf.add(tf.matmul(decoder_outputs_flat, self.W), self.b)
+        decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, self.config.vocab_size))
+        decoder_prediction = tf.argmax(decoder_logits, 2)
+        return decoder_prediction, decoder_logits
+
+    # Following functions are from the tutorial linked above.
+
     def _loop_fn_initial(self):
         initial_elements_finished = (0 >= self.config.decoder_sequence_length)  # all False at the initial step
         initial_input = self._get_bos_embedded()
@@ -227,36 +266,128 @@ class Seq2seq(object):
         else:
             return self._loop_fn_transition(time, previous_output, previous_state, previous_loop_state)
 
-    def generate(self):
-        '''Generate output from the encoder final hidden state.
-        
-        This code and all the _loop_fn* functions are implemented from:
-        https://github.com/ematvey/tensorflow-seq2seq-tutorials/blob/master/2-seq2seq-advanced.ipynb
-        '''
-        with tf.variable_scope('Decoder', reuse=True):
-            decoder_outputs_ta, decoder_final_state, _ = tf.nn.raw_rnn(self._decoder_cell, self._loop_fn)
-        decoder_outputs = decoder_outputs_ta.stack() 
-
-        decoder_max_steps, decoder_batch_size, decoder_dim = tf.unstack(tf.shape(decoder_outputs))
-        decoder_outputs_flat = tf.reshape(decoder_outputs, (-1, decoder_dim))
-        decoder_logits_flat = tf.add(tf.matmul(decoder_outputs_flat, self.W), self.b)
-        decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, self.config.vocab_size))
-        decoder_prediction = tf.argmax(decoder_logits, 2)
-        return decoder_prediction, decoder_logits
 
 class LanguageSeq2Seq(Seq2seq):
+    '''Seq2seq operations that require config.data_reader.
+    '''
+
+    def __init__(self, config):
+        self.vocab = utils.Vocab()
+        self._construct_vocab(config)
+        self.data_reader = utils.DataReader(self.vocab)
+        self._construct_data_reader()
+        config.batches_per_epoch = ceil(self.data_reader.nexchange / config.batch_size)
+        super(LanguageSeq2Seq, self).__init__(config)
+        return
+
+    def _construct_vocab(config):
+        self.vocab.construct(config.data_path, config.vocab_size)
+        return
+
+    def _construct_data_reader(self, config):
+        self.data_reader.construct(config.data_path, sent_size=config.sequence_length)
+        return
 
     def _get_bos_embedded(self):
-        bos_val = self.config.data_reader._bos_token 
+        '''To seed the generator.
+        '''
+        bos_val = self.data_reader._bos_token 
         bos_tokens = tf.stack(np.full(self.config.batch_size, bos_val, dtype=int))
         bos_embedding = tf.nn.embedding_lookup(self.embedding_table, bos_tokens)
         return bos_embedding
 
     def _get_pad_embedded(self):
-        pad_val = self.config.data_reader._pad_token
+        '''To pad the generator.
+        '''
+        pad_val = self.data_reader._pad_token
         pad_tokens = tf.stack(np.full(self.config.batch_size, pad_val,  dtype=int))
         pad_embedding = tf.nn.embedding_lookup(self.embedding_table, pad_tokens)
         return pad_embedding
+
+    def train(self, sess):
+        '''Run model for all epochs
+        '''
+        print()
+        print()
+        print("Starting Training !!")
+        print()
+        self.loss_track = list()
+        self.train_start_time = utils.get_curr_time()
+        self.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
+        for epoch_id in range(self.config.max_epochs):
+            self.run_epoch(sess, epoch_id)
+        return
+
+    def run_epoch(self, sess, epoch_id=0):
+        '''Run model for a single epoch.
+        '''
+        epoch_start = utils.get_curr_time()
+        batch_iter = self.data_reader.get_iterator(self.config.batch_size, meta_tokens=None)
+        for inputs in batch_iter:
+            self.step(sess, inputs, epoch_id)
+
+        checkpoint_path = os.path.join(model.config.train_dir, 'chatbot_epoch_%d.ckpt'%(epoch_id + 1))
+        self.saver.save(sess, checkpoint_path)
+        print('Total Epoch time: {}'.format(utils.estimate_time(epoch_start)))
+        return
+
+    def step(self, sess, inputs, epoch=0):
+        '''Run model for a single batch.
+        '''
+        if not hasattr(self, 'loss_track'): self.loss_track = list()
+        if not hasattr(self.config, 'batches_per_epoch'):
+            self.config.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
+
+        batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_ = inputs
+
+        # make feed_dict, run training & loss ops
+        batch_start = utils.get_curr_time()
+        feed_dict = {self.encoder_inputs: encoder_inputs_.T,
+                     self.decoder_inputs: decoder_inputs_.T,
+                     self.decoder_targets: decoder_targets_.T}
+        _, batch_log_perp = sess.run([self.train_op, self.batch_log_perp_loss], feed_dict)
+        batch_avg_log_perp = batch_log_perp.mean()
+        batch_perplexity = np.exp(batch_avg_log_perp)
+        self.loss_track.append(batch_perplexity)
+        print(self._status(epoch, batch_id, batch_start), end='\r')
+
+        if batch_id % self.config.steps_per_checkpoint == 0:
+            self._checkpoint(sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict)
+        return
+ 
+    def _status(self, epoch, batch, batch_start):
+        '''Prints a status line.
+        '''
+        estimated_epoch_time = utils.estimate_time(batch_start, multiplier=self.config.batches_per_epoch)
+        run_time = utils.estimate_time(self.train_start_time)
+        status = 'Status: Epoch {} batch {} (Total run time: {} Estimated epoch time: {})'.format(epoch, batch, run_time, estimated_epoch_time)
+        return status
+                
+    def _checkpoint(self, sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict):
+        '''Executes checkpoint saving, printing.
+        '''
+        print(self._status(epoch, batch_id, batch_start))
+        print('  minibatch averge perplexity: {}'.format(batch_perplexity))
+        predict_, generate_ = sess.run([self.decoder_prediction, self.generated_preds], feed_dict)  
+        for i, (inp, tar, pred, gen) in enumerate(zip(feed_dict[self.encoder_inputs].T, feed_dict[self.decoder_targets].T, predict_.T, generate_.T)):
+            inp_decode = " ".join([self.vocab.decode(x) for x in inp[::-1]])
+            tar_decode = " ".join([self.vocab.decode(x) for x in tar])
+            pred_decode = " ".join([self.vocab.decode(x) for x in pred])
+            gen_decode = " ".join([self.vocab.decode(x) for x in gen])
+            print('  sample {}:'.format(i + 1))
+            print('    input     > {}'.format(inp_decode))
+            print('    target    > {}'.format(tar_decode))
+            print('    fed       > {}'.format(pred_decode))
+            print('    generated > {}'.format(gen_decode))
+            if i >= 9: break
+            print()
+        print()
+
+        # Save checkpoint
+        checkpoint_path = os.path.join(self.config.train_dir, "chatbot.ckpt")
+        self.saver.save(sess, checkpoint_path) 
+        return
+
 
 def memorize_test():
     config = Config()
@@ -393,4 +524,4 @@ if __name__ == '__main__':
                 print('    generated > {}'.format(gen))
                 if i >= 5: break
                 print()    
- 
+
