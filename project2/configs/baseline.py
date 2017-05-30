@@ -2,9 +2,14 @@ import os
 import sys
 import tensorflow as tf
 
+# _BASEDIR = ../  -- dir with models/, data/, basic_seq2seq
+_BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # safe (?) way to do sys.path.append('../')
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(_BASEDIR)
+import utils
 from basic_seq2seq import LanguageSeq2Seq as Model
+
 
 class BaselineConfig(object):
     vocab_size = 10000
@@ -16,8 +21,8 @@ class BaselineConfig(object):
     max_epochs = 15
     gradient_clip_value = 200
 
-    data_path = './data/Training_Shuffled_Dataset.txt'
-    train_dir = './models/baseline'
+    data_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset.txt')
+    train_dir = os.path.join(_BASEDIR, '../models/baseline')
 
 if __name__ == '__main__':
     config = BaselineConfig()
