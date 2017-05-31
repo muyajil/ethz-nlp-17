@@ -23,21 +23,32 @@ from basic_seq2seq import Seq2Seq, LanguageSeq2Seq
 
 class GenreBosConfig(object):
     vocab_size = 10000
+    # Size of word embeddings
     embed_dim = 500
+    # Size of RNN hidden states
     encoder_hidden_units = decoder_hidden_units = 100
-    batch_size = 124 
+    # Max sequence lengths
     sequence_length = decoder_sequence_length = encoder_sequence_length = 20
-    steps_per_checkpoint = 50
-    steps_per_validate = 50
+
+    # Optimization parameters 
+    batch_size = 124 
     max_epochs = 15
     gradient_clip_value = 200
 
+    # Checkpoints
+    steps_per_checkpoint = 100
+    steps_per_validate = 500
+
+    # Data paths
     data_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset.txt')
     label_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset_Labels.txt')
     valid_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset.txt')
     valid_label_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset_Labels.txt')
     meta_path = os.path.join(_BASEDIR, 'data/MetaInfo.txt')
+
+    # Meta dirs
     train_dir = os.path.join(_BASEDIR, 'models/genre_bos')
+    summary_dir = os.path.join(_BASEDIR, 'summaries/genre_bos')
 
 config = GenreBosConfig()
 

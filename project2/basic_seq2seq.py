@@ -86,9 +86,9 @@ class Seq2Seq(object):
             targets=tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
             weights=tf.unstack(self.weights),         # list of 1D tensors (batch_size), len=decoder_sequence_length
             average_across_timesteps=False)
-
         self.weighted_average_batch_log_perp_loss = tf.divide(tf.reduce_sum(self.batch_log_perp_loss), tf.reduce_sum(self.weights))
-        tf.summary.scalar('average_batch_log_perp', self.weighted_average_batch_log_perp_loss)
+        self.perp_fed = tf.exp(self.weighted_average_batch_log_perp_loss)
+        self.perp_summary_fed = tf.summary.scalar('perp_fed', self.perp_fed)
 
         # op for generating sequences
         self.generated_preds, self.generated_logits = self.generate()
@@ -103,6 +103,8 @@ class Seq2Seq(object):
         self.generated_weighted_average_batch_log_perp_loss = \
             tf.divide(tf.reduce_sum(self.generated_batch_log_perp_loss), tf.reduce_sum(self.weights))
 
+        self.perp_gen = tf.exp(self.generated_weighted_average_batch_log_perp_loss)
+        self.perp_summary_gen = tf.summary.scalar('perp_gen', self.perp_gen)
 
         # Ok to use adam and gradient clipping. These guys used lr=.001, clip at 200 (!!)
         # https://arxiv.org/pdf/1511.08400v7.pdf
@@ -126,6 +128,9 @@ class Seq2Seq(object):
         '''
         if not os.path.exists(self.config.train_dir):
             os.makedirs(self.config.train_dir)
+
+        if not os.path.exists(self.config.summary_dir):
+            os.makedirs(self.config.summary_dir)
 
         assert os.path.exists(self.config.data_path)
 
@@ -325,10 +330,28 @@ class LanguageSeq2Seq(Seq2Seq):
         print()
         print("Starting Training !!")
         print()
+
         self.loss_track = list()
         self.train_start_time = utils.get_curr_time()
         self.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
 
+        if hasattr(self.config, 'summary_dir'):
+            train_summary_dir = os.path.join(self.config.summary_dir, 'train')
+            valid_summary_dir = os.path.join(self.config.summary_dir, 'valid')
+            if not os.path.exists(train_summary_dir):
+                os.makedirs(train_summary_dir)
+            else:
+                print("WARNING: training summary dir already exists ({})".format(train_summary_dir))
+            if not os.path.exists(valid_summary_dir):
+                os.makedirs(valid_summary_dir)
+            else:
+                print("WARNING: validation summary dir already exists ({})".format(valid_summary_dir))
+            self.train_summary_writer = tf.summary.FileWriter(train_summary_dir, sess.graph)
+            self.valid_summary_writer = tf.summary.FileWriter(valid_summary_dir, sess.graph)
+            print("TENSORBOARD logdir: {}".format(self.config.summary_dir))
+        else:
+            print("WARNING: No tensorboard support for this run.")
+            self.summary_writer = None
         for epoch_id in range(self.config.max_epochs):
             self.run_epoch(sess, epoch_id)
         return
@@ -392,6 +415,9 @@ class LanguageSeq2Seq(Seq2Seq):
         gen_loss_op = self.generated_weighted_average_batch_log_perp_loss 
         fed_loss, gen_loss = sess.run([fed_loss_op, gen_loss_op], feed_dict)
         status = self._status(epoch, batch_id) + ' Validating'
+
+        global_step_, summary = sess.run([self.global_step, self.summary_op], feed_dict)
+        self.valid_summary_writer.add_summary(summary, global_step_)
        
         print()
         print()
@@ -400,6 +426,7 @@ class LanguageSeq2Seq(Seq2Seq):
         print('  Perplexity (using gen logits): {}'.format(np.exp(gen_loss)))
         print()
         print()
+
         return
 
     def _status(self, epoch, batch, batch_start=None):
@@ -435,6 +462,9 @@ class LanguageSeq2Seq(Seq2Seq):
             print()
         print()
 
+        global_step_, summary = sess.run([self.global_step, self.summary_op], feed_dict)
+        self.train_summary_writer.add_summary(summary, global_step_)
+ 
         # Save checkpoint
         checkpoint_path = os.path.join(self.config.train_dir, "chatbot.ckpt")
         self.saver.save(sess, checkpoint_path) 
