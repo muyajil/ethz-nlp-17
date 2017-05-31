@@ -16,7 +16,7 @@ from basic_seq2seq import Seq2Seq, LanguageSeq2Seq
 
 class ConcatOneHotConfig(object):
     vocab_size = 10000
-    embed_dim = 500
+    embed_dim = 200
     encoder_hidden_units = decoder_hidden_units = 100
     batch_size = 124 
     sequence_length = decoder_sequence_length = encoder_sequence_length = 20

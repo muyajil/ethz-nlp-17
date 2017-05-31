@@ -97,14 +97,14 @@ class Seq2Seq(object):
             logits=self.generated_logits)
         self.generated_batch_log_perp_loss = sequence_loss_by_example(
             logits=tf.unstack(self.generated_logits),   # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
-            targets=tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
-            weights=tf.unstack(self.weights),         # list of 1D tensors (batch_size), len=decoder_sequence_length
+            targets=tf.unstack(self.decoder_targets),   # list of 1D tensors (batch_size), len=decoder_sequence_length
+            weights=tf.unstack(self.weights),           # list of 1D tensors (batch_size), len=decoder_sequence_length
             average_across_timesteps=False)
         self.generated_weighted_average_batch_log_perp_loss = \
             tf.divide(tf.reduce_sum(self.generated_batch_log_perp_loss), tf.reduce_sum(self.weights))
 
 
-        # Ok to use adam and gradient clipping. These guys used lr=.001, clip at 200 (!)
+        # Ok to use adam and gradient clipping. These guys used lr=.001, clip at 200 (!!)
         # https://arxiv.org/pdf/1511.08400v7.pdf
         with tf.variable_scope('optimizer', reuse=None) as scope:
             if (not hasattr(self.config, 'gradient_clip_value')) or self.config.gradient_clip_value is None:
