@@ -329,7 +329,7 @@ class DataReader(object):
                 batch_genres = [self.meta_reader.get_genre(line, most_common=True) for line in original_lines]
                 #encoded_batch_genres = np.array([self.vocab.encode(bg) for bg in batch_genres])
 
-                assert encoded_batch_genres.size == batch_size
+                assert len(batch_genres) == batch_size
                 yield counter, self.encode_inputs[batch_indices], self.decode_inputs[batch_indices], self.decode_targets[batch_indices], batch_genres
             elif meta_tokens is 'all':
                 original_lines =  batch_indices // 2 # // because 2 encodes per line

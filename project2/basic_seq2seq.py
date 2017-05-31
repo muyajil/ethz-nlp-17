@@ -144,6 +144,7 @@ class Seq2Seq(object):
             name='decoder_inputs')
         return
 
+
     def add_embedding(self, encoder_inputs, decoder_inputs):
         '''Adds embedding lookup on inputs using a shared embedding table.
         '''
@@ -156,9 +157,6 @@ class Seq2Seq(object):
         encoder_inputs_embedded = tf.nn.embedding_lookup(self.embedding_table, encoder_inputs)
         decoder_inputs_embedded = tf.nn.embedding_lookup(self.embedding_table, decoder_inputs)
         return encoder_inputs_embedded, decoder_inputs_embedded
-
-    def augment_decoder_inputs(self, decoder_inputs_embedded):
-        return decoder_inputs_embedded
 
     def add_encoder_rnn(self, encoder_inputs_embedded):
         '''Encoder rnn, used to access the hidden state.
@@ -214,12 +212,12 @@ class Seq2Seq(object):
 
     def _get_bos_embedded(self):
         bos_tokens = tf.stack(np.ones(self.config.batch_size, dtype=int))
-        bos_embedding = tf.nn.embedding_lookup(self.embedding_table, bos_tokens)
+        bos_embedded = tf.nn.embedding_lookup(self.embedding_table, bos_embedded)
         return bos_embedding
 
     def _get_pad_embedded(self):
         pad_tokens = tf.stack(np.zeros(self.config.batch_size, dtype=int))
-        pad_embedding = tf.nn.embedding_lookup(self.embedding_table, pad_tokens)
+        pad_embedded = tf.nn.embedding_lookup(self.embedding_table, pad_embedded)
         return pad_embedding
 
     def generate(self):
