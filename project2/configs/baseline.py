@@ -18,11 +18,13 @@ class BaselineConfig(object):
     batch_size = 124 
     sequence_length = decoder_sequence_length = encoder_sequence_length = 20
     steps_per_checkpoint = 50
+    steps_per_validate = 50
     max_epochs = 15
     gradient_clip_value = 200
 
     data_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset.txt')
-    train_dir = os.path.join(_BASEDIR, '../models/baseline')
+    valid_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset.txt')
+    train_dir = os.path.join(_BASEDIR, 'models/baseline')
 
 if __name__ == '__main__':
     config = BaselineConfig()

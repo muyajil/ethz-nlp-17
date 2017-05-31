@@ -28,16 +28,18 @@ class GenreBosConfig(object):
     batch_size = 124 
     sequence_length = decoder_sequence_length = encoder_sequence_length = 20
     steps_per_checkpoint = 50
+    steps_per_validate = 50
     max_epochs = 15
     gradient_clip_value = 200
 
     data_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset.txt')
-    meta_path = os.path.join(_BASEDIR, 'data/MetaInfo.txt')
     label_path = os.path.join(_BASEDIR, 'data/Training_Shuffled_Dataset_Labels.txt')
+    valid_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset.txt')
+    valid_label_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset_Labels.txt')
+    meta_path = os.path.join(_BASEDIR, 'data/MetaInfo.txt')
     train_dir = os.path.join(_BASEDIR, 'models/genre_bos')
 
 config = GenreBosConfig()
-
 
 class GenreBosSeq2Seq(LanguageSeq2Seq):
 
@@ -47,10 +49,18 @@ class GenreBosSeq2Seq(LanguageSeq2Seq):
         Loads genre tags from meta_path, add them to Vocab before reading tokens.
         '''
         self.meta_reader = utils.MetaReader(config.meta_path, config.label_path)
+
         self.vocab = utils.Vocab()
+        # constructing with meta_reader adds genre tokens to the vocabulary
         self.vocab.construct(config.data_path, config.vocab_size, self.meta_reader)
+
         self.data_reader = utils.DataReader(self.vocab, self.meta_reader)
         self.data_reader.construct(config.data_path, sent_size=config.sequence_length)
+
+        self.valid_meta_reader = utils.MetaReader(config.meta_path, config.valid_label_path)
+        self.valid_reader = utils.DataReader(self.vocab, self.valid_meta_reader)
+        self.valid_reader.construct(config.valid_path, sent_size=config.sequence_length)
+
         assert self.vocab.get_vocab_size() == config.vocab_size
         return
 
@@ -67,10 +77,10 @@ class GenreBosSeq2Seq(LanguageSeq2Seq):
         bos_embedding = tf.nn.embedding_lookup(self.embedding_table, self.genre_tags)
         return bos_embedding
 
-    def get_batch_iter(self):
+    def get_batch_iter(self, reader):
         '''Iterator over inputs for self.step, for easy overwrite access.
         '''
-        return self.data_reader.get_iterator(self.config.batch_size, meta_tokens='most_common')
+        return reader.get_iterator(self.config.batch_size, meta_tokens='most_common')
 
     def construct_feed_dict(self, inputs):
         batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, genre_tags_ = inputs
@@ -90,12 +100,4 @@ if __name__ == '__main__':
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         model.train(sess)
-
-    if False:    
-        meta_reader = utils.MetaReader(config.meta_path, config.label_path)
-        vocab = utils.Vocab()
-        vocab.construct(config.data_path, config.vocab_size, meta_reader)
-        data_reader = utils.DataReader(vocab, meta_reader)
-        data_reader.construct(config.data_path, sent_size=config.sequence_length)
-        assert vocab.get_vocab_size() == config.vocab_size
 

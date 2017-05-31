@@ -1,5 +1,10 @@
 # Borrowed a lot from: https://github.com/ematvey/tensorflow-seq2seq-tutorials/blob/master/1-seq2seq.ipynb
 
+# TODO: add option to load pretrained word embeddings,
+#   e.g. self.embeddings = load_embeddings(pretrain_path, vocab)
+#       which overwrites the intialization with embeddings for words
+#       that exist in both vocabularies. Keep the embeddings as trainable
+
 import os
 import sys
 import numpy as np
@@ -10,15 +15,15 @@ from math import ceil
 
 class Config(object):
     vocab_size = 10
-    embed_dim = encode_embed_dim = decode_embed_dim = 5
+    embed_dim = 5
     encoder_hidden_units = decoder_hidden_units = 7
     batch_size = 5
     sequence_length = decoder_sequence_length = encoder_sequence_length = 10
     learning_rate = .0001
 
-class Seq2seq(object):
+class Seq2Seq(object):
     def __init__(self, config):
-        '''Basic Seq2seq implementation.
+        '''Basic Seq2Seq implementation.
 
         Encoder inputs are fed through an RNN, final state is used to seed
         an RNN over decoder inputs. We will try augmenting the final state
@@ -45,9 +50,9 @@ class Seq2seq(object):
         # Parameters/Placeholders
         self.config = config
         self._handle_config()
-
-
         self.add_placeholders()
+        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+
         try:
             self.weights = tf.cast(tf.not_equal(self.decoder_targets, self.config.pad_symbol), tf.float32)
         except AttributeError:
@@ -77,33 +82,43 @@ class Seq2seq(object):
             logits=self.decoder_logits)
         self.loss = tf.reduce_mean(self.stepwise_cross_entropy)
         self.batch_log_perp_loss = sequence_loss_by_example(
-            tf.unstack(self.decoder_logits), # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
-            tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
-            tf.unstack(self.weights))# list of 1D tensors (batch_size), len=decoder_sequence_length
-        self.average_batch_log_perp_loss = tf.reduce_mean(self.batch_log_perp_loss)
+            logits=tf.unstack(self.decoder_logits),   # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
+            targets=tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
+            weights=tf.unstack(self.weights),         # list of 1D tensors (batch_size), len=decoder_sequence_length
+            average_across_timesteps=False)
+
+        self.weighted_average_batch_log_perp_loss = tf.divide(tf.reduce_sum(self.batch_log_perp_loss), tf.reduce_sum(self.weights))
+        tf.summary.scalar('average_batch_log_perp', self.weighted_average_batch_log_perp_loss)
 
         # op for generating sequences
         self.generated_preds, self.generated_logits = self.generate()
         self.generated_stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.generated_logits)
-        self.generated_loss = tf.reduce_mean(self.generated_stepwise_cross_entropy)
+        self.generated_batch_log_perp_loss = sequence_loss_by_example(
+            logits=tf.unstack(self.generated_logits),   # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
+            targets=tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
+            weights=tf.unstack(self.weights),         # list of 1D tensors (batch_size), len=decoder_sequence_length
+            average_across_timesteps=False)
+        self.generated_weighted_average_batch_log_perp_loss = \
+            tf.divide(tf.reduce_sum(self.generated_batch_log_perp_loss), tf.reduce_sum(self.weights))
+
 
         # Ok to use adam and gradient clipping. These guys used lr=.001, clip at 200 (!)
         # https://arxiv.org/pdf/1511.08400v7.pdf
         with tf.variable_scope('optimizer', reuse=None) as scope:
-            if (not hasattr(self.config, 'gradient_clip_value'))or self.config.gradient_clip_value is None:
+            if (not hasattr(self.config, 'gradient_clip_value')) or self.config.gradient_clip_value is None:
                 self.adam = tf.train.AdamOptimizer()
-                self.train_op = self.adam.minimize(self.loss)
+                self.train_op = self.adam.minimize(self.loss, global_step=self.global_step)
             else:
                 clip = self.config.gradient_clip_value
                 self.optimizer = tf.train.AdamOptimizer()
                 self.gvs = self.optimizer.compute_gradients(self.stepwise_cross_entropy)
                 self.capped_gvs = [(tf.clip_by_value(grad, -clip, clip), var) for grad, var in self.gvs]
-                self.train_op = self.optimizer.apply_gradients(self.capped_gvs)
+                self.train_op = self.optimizer.apply_gradients(self.capped_gvs, global_step=self.global_step)
 
+        self.summary_op = tf.summary.merge_all()
         self.saver = tf.train.Saver(tf.global_variables())
-
         return
 
     def _handle_config(self):
@@ -142,6 +157,9 @@ class Seq2seq(object):
         decoder_inputs_embedded = tf.nn.embedding_lookup(self.embedding_table, decoder_inputs)
         return encoder_inputs_embedded, decoder_inputs_embedded
 
+    def augment_decoder_inputs(self, decoder_inputs_embedded):
+        return decoder_inputs_embedded
+
     def add_encoder_rnn(self, encoder_inputs_embedded):
         '''Encoder rnn, used to access the hidden state.
         '''
@@ -167,10 +185,10 @@ class Seq2seq(object):
                 dtype=tf.float32, time_major=True)
         return decoder_outputs, decoder_final_state
 
-    def project_onto_decoder_vocab(self, decoder_outputs):
+    def project_onto_decoder_vocab(self, decoder_outputs, reuse=None):
         '''Calculates logits over vocabulary from the decoder outputs
         '''
-        with tf.variable_scope("DecoderProjection") as scope:
+        with tf.variable_scope("DecoderProjection", reuse=reuse) as scope:
             self.W = tf.get_variable(name='decode_weights',
                 shape=[self.config.decoder_hidden_units, self.config.vocab_size],
                 initializer=tf.contrib.layers.xavier_initializer())
@@ -213,11 +231,7 @@ class Seq2seq(object):
         with tf.variable_scope('Decoder', reuse=True):
             decoder_outputs_ta, decoder_final_state, _ = tf.nn.raw_rnn(self._decoder_cell, self._loop_fn)
         decoder_outputs = decoder_outputs_ta.stack() 
-
-        decoder_max_steps, decoder_batch_size, decoder_dim = tf.unstack(tf.shape(decoder_outputs))
-        decoder_outputs_flat = tf.reshape(decoder_outputs, (-1, decoder_dim))
-        decoder_logits_flat = tf.add(tf.matmul(decoder_outputs_flat, self.W), self.b)
-        decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, self.config.vocab_size))
+        decoder_logits = self.project_onto_decoder_vocab(decoder_outputs, reuse=True)
         decoder_prediction = tf.argmax(decoder_logits, 2)
         return decoder_prediction, decoder_logits
 
@@ -267,29 +281,31 @@ class Seq2seq(object):
             return self._loop_fn_transition(time, previous_output, previous_state, previous_loop_state)
 
 
-class LanguageSeq2Seq(Seq2seq):
-    '''Seq2seq operations that require config.data_reader.
+class LanguageSeq2Seq(Seq2Seq):
+    '''Seq2Seq operations that require config.data_reader.
     '''
 
     def __init__(self, config):
-        self.vocab = utils.Vocab()
-        self._construct_vocab(config)
-        self.data_reader = utils.DataReader(self.vocab)
-        self._construct_data_reader()
+        self._load_data_objects(config)
+        config.pad_symbol = self.data_reader._pad_token
         config.batches_per_epoch = ceil(self.data_reader.nexchange / config.batch_size)
         super(LanguageSeq2Seq, self).__init__(config)
         return
 
-    def _construct_vocab(config):
+    def _load_data_objects(self, config):
+        self.vocab = utils.Vocab()
         self.vocab.construct(config.data_path, config.vocab_size)
-        return
-
-    def _construct_data_reader(self, config):
+        self.data_reader = utils.DataReader(self.vocab)
         self.data_reader.construct(config.data_path, sent_size=config.sequence_length)
+        if hasattr(config, 'valid_path'):
+            self.valid_reader = utils.DataReader(self.vocab)
+            self.valid_reader.construct(config.valid_path, sent_size=config.sequence_length)
+        else:
+            self.valid_reader = None
         return
 
     def _get_bos_embedded(self):
-        '''To seed the generator.
+        '''to seed the generator.
         '''
         bos_val = self.data_reader._bos_token 
         bos_tokens = tf.stack(np.full(self.config.batch_size, bos_val, dtype=int))
@@ -314,15 +330,29 @@ class LanguageSeq2Seq(Seq2seq):
         self.loss_track = list()
         self.train_start_time = utils.get_curr_time()
         self.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
+
         for epoch_id in range(self.config.max_epochs):
             self.run_epoch(sess, epoch_id)
         return
+
+    def get_batch_iter(self, reader):
+        '''Iterator over inputs for self.step, for easy overwrite access.
+        '''
+        return reader.get_iterator(self.config.batch_size, meta_tokens=None)
+
+    def construct_feed_dict(self, inputs):
+        batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_ = inputs
+        feed_dict = {self.encoder_inputs: encoder_inputs_.T,
+                     self.decoder_inputs: decoder_inputs_.T,
+                     self.decoder_targets: decoder_targets_.T}
+        return feed_dict
+        
 
     def run_epoch(self, sess, epoch_id=0):
         '''Run model for a single epoch.
         '''
         epoch_start = utils.get_curr_time()
-        batch_iter = self.data_reader.get_iterator(self.config.batch_size, meta_tokens=None)
+        batch_iter = self.get_batch_iter(self.data_reader)
         for inputs in batch_iter:
             self.step(sess, inputs, epoch_id)
 
@@ -337,48 +367,72 @@ class LanguageSeq2Seq(Seq2seq):
         if not hasattr(self, 'loss_track'): self.loss_track = list()
         if not hasattr(self.config, 'batches_per_epoch'):
             self.config.batches_per_epoch = ceil(self.data_reader.nexchange / self.config.batch_size)
-
-        batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_ = inputs
-
+        batch_id = inputs[0]
         # make feed_dict, run training & loss ops
+        feed_dict = self.construct_feed_dict(inputs)
         batch_start = utils.get_curr_time()
-        feed_dict = {self.encoder_inputs: encoder_inputs_.T,
-                     self.decoder_inputs: decoder_inputs_.T,
-                     self.decoder_targets: decoder_targets_.T}
-        _, batch_log_perp = sess.run([self.train_op, self.batch_log_perp_loss], feed_dict)
-        batch_avg_log_perp = batch_log_perp.mean()
-        batch_perplexity = np.exp(batch_avg_log_perp)
+        loss_op = self.weighted_average_batch_log_perp_loss
+        #_, batch_log_perp, summary = sess.run([self.train_op, loss_op, self.tb_summary], feed_dict)
+        _, batch_log_perp = sess.run([self.train_op, loss_op], feed_dict)
+        batch_perplexity = np.exp(batch_log_perp)
         self.loss_track.append(batch_perplexity)
         print(self._status(epoch, batch_id, batch_start), end='\r')
 
         if batch_id % self.config.steps_per_checkpoint == 0:
             self._checkpoint(sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict)
+        if (not self.valid_reader is None) and batch_id % self.config.steps_per_validate == 0:
+            self.validate(sess, epoch, batch_id)
         return
- 
-    def _status(self, epoch, batch, batch_start):
+
+    def validate(self, sess, epoch, batch_id):
+        '''Get average loss over whole validation set.
+        '''
+        valid_iter = self.get_batch_iter(self.valid_reader)
+        inputs = next(valid_iter)
+        feed_dict = self.construct_feed_dict(inputs)
+        fed_loss_op = self.weighted_average_batch_log_perp_loss
+        gen_loss_op = self.generated_weighted_average_batch_log_perp_loss 
+        fed_loss, gen_loss = sess.run([fed_loss_op, gen_loss_op], feed_dict)
+        status = self._status(epoch, batch_id) + ' Validating'
+       
+        print()
+        print()
+        print(status)
+        print('  Perplexity (using fed logits): {}'.format(np.exp(fed_loss)))
+        print('  Perplexity (using gen logits): {}'.format(np.exp(gen_loss)))
+        print()
+        print()
+        return
+
+    def _status(self, epoch, batch, batch_start=None):
         '''Prints a status line.
         '''
-        estimated_epoch_time = utils.estimate_time(batch_start, multiplier=self.config.batches_per_epoch)
-        run_time = utils.estimate_time(self.train_start_time)
-        status = 'Status: Epoch {} batch {} (Total run time: {} Estimated epoch time: {})'.format(epoch, batch, run_time, estimated_epoch_time)
+        status = 'Status: Epoch {} batch {}'.format(epoch, batch)
+        if not batch_start is None:
+            estimated_epoch_time = utils.estimate_time(batch_start, multiplier=self.config.batches_per_epoch)
+            run_time = utils.estimate_time(self.train_start_time)
+            status = status + ' (Total run time: {} Estimated epoch time: {})'.format(run_time, estimated_epoch_time)
         return status
-                
+
     def _checkpoint(self, sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict):
         '''Executes checkpoint saving, printing.
         '''
         print(self._status(epoch, batch_id, batch_start))
         print('  minibatch averge perplexity: {}'.format(batch_perplexity))
         predict_, generate_ = sess.run([self.decoder_prediction, self.generated_preds], feed_dict)  
-        for i, (inp, tar, pred, gen) in enumerate(zip(feed_dict[self.encoder_inputs].T, feed_dict[self.decoder_targets].T, predict_.T, generate_.T)):
+        seqs = zip(feed_dict[self.encoder_inputs].T, feed_dict[self.decoder_targets].T, feed_dict[self.decoder_inputs].T, predict_.T, generate_.T)
+        for i, (inp, tar, dinp, pred, gen) in enumerate(seqs):
             inp_decode = " ".join([self.vocab.decode(x) for x in inp[::-1]])
             tar_decode = " ".join([self.vocab.decode(x) for x in tar])
+            dinp_decode = " ".join([self.vocab.decode(x) for x in dinp])
             pred_decode = " ".join([self.vocab.decode(x) for x in pred])
             gen_decode = " ".join([self.vocab.decode(x) for x in gen])
             print('  sample {}:'.format(i + 1))
-            print('    input     > {}'.format(inp_decode))
-            print('    target    > {}'.format(tar_decode))
-            print('    fed       > {}'.format(pred_decode))
-            print('    generated > {}'.format(gen_decode))
+            print('    input          > {}'.format(inp_decode))
+            print('    target         > {}'.format(tar_decode))
+            print('    (decode) input > {}'.format(dinp_decode))
+            print('    fed            > {}'.format(pred_decode))
+            print('    generated      > {}'.format(gen_decode))
             if i >= 9: break
             print()
         print()
@@ -399,7 +453,7 @@ def memorize_test():
 
     tf.reset_default_graph()
 
-    model = Seq2seq(config)
+    model = Seq2Seq(config)
     
     sess = tf.InteractiveSession()
     sess.run(tf.global_variables_initializer())
@@ -470,7 +524,7 @@ if __name__ == '__main__':
 
     tf.reset_default_graph()
 
-    model = Seq2seq(config)
+    model = Seq2Seq(config)
     
     sess = tf.InteractiveSession()
     sess.run(tf.global_variables_initializer())

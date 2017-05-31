@@ -8,7 +8,7 @@ import pandas as pd
 import pickle
 import time
 
-# TODO: Make modifying the encode/decoder preproc in data reader easy to modify
+# TODO: Make the encode/decoder preproc in data_reader easier to modify
 
 def get_curr_time():
     return time.time()
@@ -113,6 +113,15 @@ class Vocab(object):
 
 class MetaReader(object):
     def __init__(self, meta_path, label_path=None):
+        '''Holds genre information and maps them to lines in dataset.
+
+        Loads genre information from meta_path
+        Loads map to dataset lines from label_path
+
+        self.genres: maps movie id to genres (movies have more than one)
+        self.movie_ids: maps line id to movie id
+        self.most_common_genre: maps movie id to the single most common genre in self.genres
+        '''
 
         self.meta_path = meta_path
         self.label_path = label_path
@@ -147,14 +156,18 @@ class MetaReader(object):
         self.label_path = label_path
         # index from zero to make literally everyones life easier
         movie_ids = np.loadtxt(label_path, delimiter='\t', usecols=(0,), dtype=int) - 1
-        assert movie_ids.min() == 0
+
+        # 0 for training set, 484 for valid set
+        assert movie_ids.min() == 0 or movie_ids.min() == 484
         return movie_ids
 
-    def get_genre(self, index, most_common=False):
-        '''Index is a data id, maps via the movie list to the genre.
+    def get_genre(self, line, most_common=False):
+        '''Maps line to genre(s).
+
+        line is from data_path corresponding to label_path
         '''
         assert not self.movie_ids is None
-        mid = self.movie_ids[index]
+        mid = self.movie_ids[line]
         if most_common: return self.most_common_genre[mid]
         return self.genres[mid]
         
@@ -169,6 +182,7 @@ class DataReader(object):
         self.decode_targets = None
         self.line_ids = list()
         self.nexchange = None
+        self.sent_size = None
         self.cache_file = '/tmp/nlp-project-sentences-train.pickle'
         return
 
@@ -283,6 +297,17 @@ class DataReader(object):
         '''Iterator yielding batch number, batch_size sentences.
 
         meta_tokens can be None, most_common, or all
+        if meta_tokens is None, yield:
+            batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_
+        elif meta_tokens is most_common, yield:
+            batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, encoded_batch_genres_
+            batch_genres_ is an arr of size batch_size of genre tags (strings)
+        elif meta_tokens is all, yield:
+            batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, encoded_batch_genres_
+            encoded_batch_genres_ is an arr of zeros size [batch_size, vocab_size],
+                with 1s where the data point has a genre
+                (We might just use most_common only ... )
+            
         '''
         if shuffle:
             order = np.random.permutation(self.nexchange)
@@ -302,10 +327,10 @@ class DataReader(object):
             elif meta_tokens is 'most_common':
                 original_lines =  batch_indices // 2 # // because 2 encodes per line
                 batch_genres = [self.meta_reader.get_genre(line, most_common=True) for line in original_lines]
-                encoded_batch_genres = np.array([self.vocab.encode(bg) for bg in batch_genres])
+                #encoded_batch_genres = np.array([self.vocab.encode(bg) for bg in batch_genres])
 
                 assert encoded_batch_genres.size == batch_size
-                yield counter, self.encode_inputs[batch_indices], self.decode_inputs[batch_indices], self.decode_targets[batch_indices], encoded_batch_genres
+                yield counter, self.encode_inputs[batch_indices], self.decode_inputs[batch_indices], self.decode_targets[batch_indices], batch_genres
             elif meta_tokens is 'all':
                 original_lines =  batch_indices // 2 # // because 2 encodes per line
                 encoded_batch_genres = np.zeros((batch_size, self.vocab.get_vocab_size()), dtype=int)
