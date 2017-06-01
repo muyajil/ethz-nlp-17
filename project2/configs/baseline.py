@@ -34,6 +34,10 @@ class BaselineConfig(object):
     valid_path = os.path.join(_BASEDIR, 'data/Validation_Shuffled_Dataset.txt')
 
     # Meta Dirs
+    # TODO: add descriptors to summary_dir from the config
+    #       this way, we can compare model performance from 
+    #       hyperparameter choices using tensorboard
+    #       (Do this for all the configs)
     train_dir = os.path.join(_BASEDIR, 'models/baseline')
     summary_dir = os.path.join(_BASEDIR, 'summaries/baseline')
 
