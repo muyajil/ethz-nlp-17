@@ -43,8 +43,8 @@ class ConcatEmbeddingConfig(object):
     meta_path = os.path.join(_BASEDIR, 'data/MetaInfo.txt')
    
     # Meta dirs
-    train_dir = os.path.join(_BASEDIR, 'models/one_hot_concat')
-    summary_dir = os.path.join(_BASEDIR, 'summaries/one_hot_concat')
+    train_dir = os.path.join(_BASEDIR, 'models/embed_concat')
+    summary_dir = os.path.join(_BASEDIR, 'summaries/embed_concat')
 
 config = ConcatEmbeddingConfig()
 
