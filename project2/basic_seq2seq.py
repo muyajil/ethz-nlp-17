@@ -377,7 +377,7 @@ class LanguageSeq2Seq(Seq2Seq):
         for inputs in batch_iter:
             self.step(sess, inputs, epoch_id)
 
-        checkpoint_path = os.path.join(model.config.train_dir, 'chatbot_epoch_%d.ckpt'%(epoch_id + 1))
+        checkpoint_path = os.path.join(self.config.train_dir, 'chatbot_epoch_%d.ckpt'%(epoch_id + 1))
         self.saver.save(sess, checkpoint_path)
         print('Total Epoch time: {}'.format(utils.estimate_time(epoch_start)))
         return
