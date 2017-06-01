@@ -119,9 +119,13 @@ class GenreConcatOneHotSeq2Seq(LanguageSeq2Seq):
         '''
         return reader.get_iterator(self.config.batch_size, meta_tokens='most_common')
 
+    def _encode_genre_tkns(self, genre_tokens_):
+        genre_tags_ = np.array([self._map_genre_tkn_to_index[tkn] for tkn in genre_tokens_])
+        return genre_tags_
+
     def construct_feed_dict(self, inputs):
         batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, genre_tokens_ = inputs
-        genre_tags_ = np.array([self._map_genre_tkn_to_index[tkn] for tkn in genre_tokens_])
+        genre_tags_ = self._encode_genre_tkns(self, genre_tokens_)
 
         # make feed_dict, run training & loss ops
         batch_start = utils.get_curr_time()
@@ -131,8 +135,8 @@ class GenreConcatOneHotSeq2Seq(LanguageSeq2Seq):
                      self.genre_tags: genre_tags_}
         return feed_dict
 
+config = ConcatOneHotConfig()
 if __name__ == '__main__':
-    config = ConcatOneHotConfig()
     tf.reset_default_graph()
     model = GenreConcatOneHotSeq2Seq(config)
     with tf.Session() as sess:

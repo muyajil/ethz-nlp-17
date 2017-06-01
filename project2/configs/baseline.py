@@ -41,8 +41,8 @@ class BaselineConfig(object):
     train_dir = os.path.join(_BASEDIR, 'models/baseline')
     summary_dir = os.path.join(_BASEDIR, 'summaries/baseline')
 
+config = BaselineConfig()
 if __name__ == '__main__':
-    config = BaselineConfig()
     tf.reset_default_graph()
     model = Model(config)
     with tf.Session() as sess:

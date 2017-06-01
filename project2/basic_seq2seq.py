@@ -1,4 +1,5 @@
 # Borrowed a lot from: https://github.com/ematvey/tensorflow-seq2seq-tutorials/blob/master/1-seq2seq.ipynb
+#                      https://github.com/ematvey/tensorflow-seq2seq-tutorials/blob/master/2-seq2seq-advanced.ipynb
 
 # TODO: add option to load pretrained word embeddings,
 #   e.g. self.embeddings = load_embeddings(pretrain_path, vocab)
@@ -557,6 +558,9 @@ if __name__ == '__main__':
     config.sequence_length = config.decoder_sequence_length = config.encoder_sequence_length = 9
     config.batch_size = 5
     config.pad_symbol = 0
+    config.train_dir = '/tmp'
+    config.summary_dir = '/tmp'
+    config.data_path = '/tmp'
 
     tf.reset_default_graph()
 

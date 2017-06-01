@@ -4,9 +4,6 @@
 # DONE: extend utils.DataReader.get_iterator to interate over genre, adding genre tokens to feed_dict
 # DONE: overwrite Model._get_bos_embedded to give tokens from feed_dict
 # DONE: overwrite Model.step to deal with the genre tag properly
-# TODO: version that has "<bos> <GENRE>" as inputs
-#       think how to do this with the generator
-#       _loop_fn_initial() -> _loop_fn_secondary() -> _loop_fn_transition()?
 
 import os
 import sys
@@ -93,9 +90,13 @@ class GenreBosSeq2Seq(LanguageSeq2Seq):
         '''
         return reader.get_iterator(self.config.batch_size, meta_tokens='most_common')
 
+    def _encode_genre_tkns(self, genre_tkns_):
+        genre_tags_ = np.array([self.vocab.encode(x) for x in genre_tkns_], dtype=int)
+        return genre_tags_
+
     def construct_feed_dict(self, inputs):
         batch_id, encoder_inputs_, decoder_inputs_, decoder_targets_, genre_tkns_ = inputs
-        genre_tags_ = np.array([self.vocab.encode(x) for x in genre_tkns_], dtype=int)
+        genre_tags_ = self._encode_genre_tkns(genre_tkns_)
         decoder_inputs_[:, 0] = genre_tags_
 
         # make feed_dict, run training & loss ops

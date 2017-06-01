@@ -137,6 +137,7 @@ class MetaReader(object):
         self.num_genres = len(self.genre_counter)
 
         self.most_common_genre = self.collapse_to_most_common_genre()
+        self.genre_set = self.genre_counter.keys()
         self.movie_ids = self.load_map_to_data(label_path) if not label_path is None else None
         return
     
