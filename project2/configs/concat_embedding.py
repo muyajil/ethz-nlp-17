@@ -1,6 +1,9 @@
 # Append embedding of most common genre to
 #   each word embedding input to the decoder
 
+# TODO: extend this and concat_one_hot_embeddings
+#       to deal with multiple genres
+
 import os
 import sys
 import tensorflow as tf
