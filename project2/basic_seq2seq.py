@@ -328,7 +328,12 @@ class LanguageSeq2Seq(Seq2Seq):
         '''
         print()
         print()
-        print("Starting Training !!")
+        self.config.checkpoint_path = os.path.join(self.config.train_dir, "chatbot.ckpt")
+        if os.path.exists(self.config.checkpoint_path + '.index'):
+            print('Restoring session from {}'.format(self.config.checkpoint_path))
+            self.saver.restore(sess, self.config.checkpoint_path)
+        else:
+            print("Starting Training !!")
         print()
 
         self.loss_track = list()
@@ -377,7 +382,7 @@ class LanguageSeq2Seq(Seq2Seq):
         for inputs in batch_iter:
             self.step(sess, inputs, epoch_id)
 
-        checkpoint_path = os.path.join(model.config.train_dir, 'chatbot_epoch_%d.ckpt'%(epoch_id + 1))
+        checkpoint_path = os.path.join(self.config.train_dir, 'chatbot_epoch_%d.ckpt'%(epoch_id + 1))
         self.saver.save(sess, checkpoint_path)
         print('Total Epoch time: {}'.format(utils.estimate_time(epoch_start)))
         return
@@ -394,18 +399,17 @@ class LanguageSeq2Seq(Seq2Seq):
         batch_start = utils.get_curr_time()
         loss_op = self.weighted_average_batch_log_perp_loss
         #_, batch_log_perp, summary = sess.run([self.train_op, loss_op, self.tb_summary], feed_dict)
-        _, batch_log_perp = sess.run([self.train_op, loss_op], feed_dict)
-        batch_perplexity = np.exp(batch_log_perp)
-        self.loss_track.append(batch_perplexity)
-        print(self._status(epoch, batch_id, batch_start), end='\r')
+        _, perp_fed_, perp_gen_, global_step_ = sess.run([self.train_op, self.perp_fed, self.perp_gen, self.global_step], feed_dict)
+        self.loss_track.append(perp_fed_)
+        print(self._status(global_step_, batch_start), end='\r')
 
         if batch_id % self.config.steps_per_checkpoint == 0:
-            self._checkpoint(sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict)
+            self._checkpoint(sess, batch_start, perp_fed_, perp_gen_, feed_dict)
         if (not self.valid_reader is None) and batch_id % self.config.steps_per_validate == 0:
-            self.validate(sess, epoch, batch_id)
+            self.validate(sess)
         return
 
-    def validate(self, sess, epoch, batch_id):
+    def validate(self, sess):
         '''Get average loss over whole validation set.
         '''
         valid_iter = self.get_batch_iter(self.valid_reader)
@@ -414,10 +418,10 @@ class LanguageSeq2Seq(Seq2Seq):
         fed_loss_op = self.weighted_average_batch_log_perp_loss
         gen_loss_op = self.generated_weighted_average_batch_log_perp_loss 
         fed_loss, gen_loss = sess.run([fed_loss_op, gen_loss_op], feed_dict)
-        status = self._status(epoch, batch_id) + ' Validating'
 
         global_step_, summary = sess.run([self.global_step, self.summary_op], feed_dict)
         self.valid_summary_writer.add_summary(summary, global_step_)
+        status = self._status(global_step_) + ' Validating'
        
         print()
         print()
@@ -429,9 +433,11 @@ class LanguageSeq2Seq(Seq2Seq):
 
         return
 
-    def _status(self, epoch, batch, batch_start=None):
+
+    def _status(self, global_step_, batch_start=None):
         '''Prints a status line.
         '''
+        epoch, batch = divmod(global_step_, self.config.batches_per_epoch)
         status = 'Status: Epoch {} batch {}'.format(epoch, batch)
         if not batch_start is None:
             estimated_epoch_time = utils.estimate_time(batch_start, multiplier=self.config.batches_per_epoch)
@@ -439,11 +445,15 @@ class LanguageSeq2Seq(Seq2Seq):
             status = status + ' (Total run time: {} Estimated epoch time: {})'.format(run_time, estimated_epoch_time)
         return status
 
-    def _checkpoint(self, sess, epoch, batch_id, batch_start, batch_perplexity, feed_dict):
+    def _checkpoint(self, sess, batch_start, perp_fed, perp_gen, feed_dict):
         '''Executes checkpoint saving, printing.
         '''
-        print(self._status(epoch, batch_id, batch_start))
-        print('  minibatch averge perplexity: {}'.format(batch_perplexity))
+        global_step_, summary = sess.run([self.global_step, self.summary_op], feed_dict)
+        self.train_summary_writer.add_summary(summary, global_step_)
+        print(self._status(global_step_, batch_start))
+        print('  Perplexity (using fed logits): {}'.format(perp_fed))
+        print('  Perplexity (using gen logits): {}'.format(perp_gen))
+        print()
         predict_, generate_ = sess.run([self.decoder_prediction, self.generated_preds], feed_dict)  
         seqs = zip(feed_dict[self.encoder_inputs].T, feed_dict[self.decoder_targets].T, feed_dict[self.decoder_inputs].T, predict_.T, generate_.T)
         for i, (inp, tar, dinp, pred, gen) in enumerate(seqs):
@@ -462,12 +472,10 @@ class LanguageSeq2Seq(Seq2Seq):
             print()
         print()
 
-        global_step_, summary = sess.run([self.global_step, self.summary_op], feed_dict)
-        self.train_summary_writer.add_summary(summary, global_step_)
  
         # Save checkpoint
-        checkpoint_path = os.path.join(self.config.train_dir, "chatbot.ckpt")
-        self.saver.save(sess, checkpoint_path) 
+        self.saver.save(sess, self.config.checkpoint_path) 
+        print('Checkpoint saved at {}'.format(self.config.checkpoint_path))
         return
 
 

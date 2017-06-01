@@ -149,7 +149,8 @@ if __name__ == '__main__':
     config = ConcatEmbeddingConfig()
     tf.reset_default_graph()
     model = GenreConcatEmbeddingSeq2Seq(config)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        model.train(sess)
+    if False:
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            model.train(sess)
 
