@@ -66,11 +66,8 @@ Results
 Throw in tensorboard figures (you can give it the parent dir and it will list all plots)
 
 Visualize differences in style:
-    will make a script that answers each prompt from a text file
-        with given each genre, compare answers
-
-    compare perplexities when question is answered with wrong genre
-
+    * use eval.py and write a list of simple prompts in a text file
+    * (not necessary) compare perplexities when question is answered with wrong genre
 
 ------------------------------------------------------------------------------------------
 
