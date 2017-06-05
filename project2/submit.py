@@ -8,17 +8,15 @@ from configs import bos_genres, baseline, concat_embedding, concat_one_hot_word_
 _bdir = os.path.dirname(os.path.abspath(__file__))
 
 
-DEBUG = True
+DEBUG = False
 if DEBUG:
     TEST_PATH = os.path.join(_bdir, 'data', 'Validation_Shuffled_Dataset.txt')
-    SESS_PATH = os.path.join(_bdir, 'models', 'genre_bos', 'chatbot.ckpt')
 else:
     TEST_PATH = sys.argv[1] # path with triplets (ABC turns)
-    SESS_PATH = '' # path with model parameters
 
 # TODO: choose the best model first (see eval.py for syntax)
 # SESS_PATH must agree with Model !
-
+SESS_PATH = os.path.join(_bdir, 'models', 'genre_bos', 'chatbot.ckpt')
 config = bos_genres.config
 Model = bos_genres.GenreBosSeq2Seq
 
