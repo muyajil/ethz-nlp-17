@@ -1,0 +1,89 @@
+------------------------------------------------------------------------------------------
+
+Goal: Answer questions in the style of a genre
+
+------------------------------------------------------------------------------------------
+
+Pros:
+    (Is creativity a pro ?? -- we could get cool results)
+    Clean meta data (we have genre labels, nothing needs to be inferred)
+
+Cons:
+    The model will already have a hard time learning the base task
+        (We might be happy with results like "How are you today?" -> "Good."
+        which does not leave much room for style)
+
+    Movies have more than one genre, meaning the signal from individual genres is sparse
+        (we tag each movie with the genre that is most common
+            across the whole dataset)
+
+    Evaluation is mostly qualitative
+        (we could compare perplexity of answers when given the wrong genre)
+
+
+------------------------------------------------------------------------------------------
+
+Approaches
+
+------------------------------------------------------------------------------------------
+
+Baseline:
+    old fashioned seq2seq, no genre information
+
+Bos_genre:
+    instead of starting decoder sequence with <bos> use <genre>
+    pros:
+        easy to implement
+        cheap: no additional parameters are introduced
+            (except to learn tag embeddings)
+    cons:
+        long range dependency is probably difficult
+            (although we probably expect answers to be short...)
+
+Concat_one_hot:
+    append a one hot encoding of the genre to the word embedding
+    pros:
+        genre should effect each step of the model
+        (e.g. sentence won't forget the genre as it grows,
+            whereas in bos_genre it could).
+    cons:
+        genres are independent of each other
+
+Concat_embedding:
+    embed genre before concatenating to the word embeddings
+    pros:
+        ability to model genre information
+    cons:
+        genre information is compressed further
+        we likely will already have a hard time modelling it
+
+------------------------------------------------------------------------------------------
+
+Results
+
+------------------------------------------------------------------------------------------
+
+Throw in tensorboard figures (you can give it the parent dir and it will list all plots)
+
+Visualize differences in style:
+    * use eval.py and write a list of simple prompts in a text file
+    * (not necessary) compare perplexities when question is answered with wrong genre
+
+------------------------------------------------------------------------------------------
+
+Extensions
+
+------------------------------------------------------------------------------------------
+
+Combine bos tag with embedding concatenation
+
+Better seq2seq model -- capturing language first will make it easier to capture the style
+    HRED --  https://github.com/julianser/hed-dlg-truncated
+    Attention
+    like anything else could go here, I think just throw some references to make us look smart
+
+Make use of all genres, instead of the most common one
+    e.g. "multi-hot" encodering, embed and average 
+
+
+
