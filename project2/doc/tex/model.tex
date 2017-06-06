@@ -1,0 +1,33 @@
+\section{Model}
+
+% a precise description of your approach
+
+Baseline:
+    old fashioned seq2seq, no genre information
+
+Bos_genre:
+    instead of starting decoder sequence with <bos> use <genre>
+    pros:
+        easy to implement
+        cheap: no additional parameters are introduced
+            (except to learn tag embeddings)
+    cons:
+        long range dependency is probably difficult
+            (although we probably expect answers to be short...)
+
+Concat_one_hot:
+    append a one hot encoding of the genre to the word embedding
+    pros:
+        genre should effect each step of the model
+        (e.g. sentence won't forget the genre as it grows,
+            whereas in bos_genre it could).
+    cons:
+        genres are independent of each other
+
+Concat_embedding:
+    embed genre before concatenating to the word embeddings
+    pros:
+        ability to model genre information
+    cons:
+        genre information is compressed further
+        we likely will already have a hard time modelling it

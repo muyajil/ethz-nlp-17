@@ -1,0 +1,73 @@
+\ProvidesPackage{style}
+
+\usepackage[dvipsnames]{xcolor} 
+\usepackage{proof}
+\usepackage{hyperref}
+\usepackage{placeins}
+\usepackage{pdfpages}
+\usepackage{ETHlogo}
+\usepackage{graphicx}
+\usepackage{listings}	
+\usepackage[nounderscore]{syntax}
+\usepackage{ifpdf}
+\ifpdf
+   % put here packages only for the PDF:
+   \DeclareGraphicsExtensions{.pdf,.png,.jpg,.mps}
+   \usepackage{hyperref} 
+\else
+   % put here packages only for the DVI:
+\fi
+
+% put all the other packages here:
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{longtable}
+
+%\usepackage[usenames]{color}
+
+\newcommand{\remark}[1]{\textcolor{red}{$\blacktriangleright$\textbf{#1}$\blacktriangleleft$}}
+
+\renewcommand{\maketitle}
+  {\setlength{\unitlength}{1mm}
+  \begin{minipage}{\textwidth}
+    \ETHlogo[55mm]\hfill%\includegraphics[scale=.45]{infsec}
+  \end{minipage}
+  \begin{center}
+    {\color{Gray} \rule{.8\textwidth}{.5pt}}
+  \end{center}
+  \begin{center}
+    {\Large Report}\\
+    \vspace{10pt}
+    {\huge \bf {Automated Formal Analysis of Solution 2.12}}\\
+    \vspace{7pt}
+    % Contact: 
+    % \proposal@contact
+    \vspace{-2pt}
+  \end{center}
+
+  \begin{center}
+    {\color{Gray} \rule{.8\textwidth}{.5pt}}
+  \end{center}
+}
+
+\newtheorem{attackInt}{Attack}
+
+\newenvironment{attack}
+{\begin{attackInt} }
+{ $\blacksquare$\end{attackInt} }
+
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{green!40!black},
+  commentstyle=\itshape\color{purple!40!black},
+  identifierstyle=\color{blue},
+  stringstyle=\color{orange},
+  tabsize=2,
+}
