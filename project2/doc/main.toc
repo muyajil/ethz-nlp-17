@@ -1,0 +1,8 @@
+\contentsline {section}{\numberline {1}Motivation}{3}{section.1}
+\contentsline {section}{\numberline {2}Model}{4}{section.2}
+\contentsline {subsection}{\numberline {2.1}Bos\_genre}{4}{subsection.2.1}
+\contentsline {subsection}{\numberline {2.2}Concat\_one\_hot}{4}{subsection.2.2}
+\contentsline {subsection}{\numberline {2.3}Concat\_embedding}{4}{subsection.2.3}
+\contentsline {section}{\numberline {3}Analysis}{5}{section.3}
+\contentsline {section}{\numberline {4}Example Sentences}{6}{section.4}
+\contentsline {section}{\numberline {5}Existing Literature}{7}{section.5}

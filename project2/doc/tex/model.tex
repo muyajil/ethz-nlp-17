@@ -1,33 +1,13 @@
 \section{Model}
 
 % a precise description of your approach
+In this section we present and discuss three different approaches for including the genre information in a basic seq2seq2 model. For the evaluation of these models we use an old fashioned seq2seq model as comparison, with no genre information.
 
-Baseline:
-    old fashioned seq2seq, no genre information
+\subsection{Bos\_genre}
+The first approach is to replace the <bos> tag in the decoder sequence with a tag for the genre (e.g., <comedy>). These genre tags are included in the vocabulary and hence are encoded as indices, and then embedded. The advantages of this approach are that it is easy to implement, and that it is very cheap in terms of additional model parameters. Apart from the tag embeddings no parameters are added. One potential disadvantage may be the difficulty to have long range dependency. The model might "forget" the information about the genre while decoding long sentences.
 
-Bos_genre:
-    instead of starting decoder sequence with <bos> use <genre>
-    pros:
-        easy to implement
-        cheap: no additional parameters are introduced
-            (except to learn tag embeddings)
-    cons:
-        long range dependency is probably difficult
-            (although we probably expect answers to be short...)
+\subsection{Concat\_one\_hot}
+In order to tackle potentail problems with long term dependencies, this model appends a one hot encoding of the genre to the word embedding. The though behind this approach is that the genre should affect each step of the model. A disadvantage of this model might be the independence among the genres.
 
-Concat_one_hot:
-    append a one hot encoding of the genre to the word embedding
-    pros:
-        genre should effect each step of the model
-        (e.g. sentence won't forget the genre as it grows,
-            whereas in bos_genre it could).
-    cons:
-        genres are independent of each other
-
-Concat_embedding:
-    embed genre before concatenating to the word embeddings
-    pros:
-        ability to model genre information
-    cons:
-        genre information is compressed further
-        we likely will already have a hard time modelling it
+\subsection{Concat\_embedding}
+This model embeds the genre before concatenating it to the word embeddings. This should result in the ability to model genre information. Unfortunately, the genre information is compressed further, while we likely already have a hard time modelling it.

@@ -1,8 +1,4 @@
 \section{Motivation}
 
 % reflect the motivation of your approach
-Goal: Answer questions in the style of a genre
-
-we could get cool results
-
-Unfortunately, the evaluation is mostly qualitative (we could compare perplexity of answers when given the wrong genre)
+The text data we use for sequence learning are sentences from movies. Our idea is to extend a basic seq2seq model such that the information about the genre of movie sentences is taken into account. Our model would then answer questions in the style of a genre. The main motivation behind this approach is to have a simple extension that may give cool results. Unfortunately, the evaluation of this extension is mostly qualitative. However we can comapre the overall performance of the extension, qualitatively, with the performance of a basic seq2seq model.
