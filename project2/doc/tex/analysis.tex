@@ -1,3 +1,57 @@
 \section{Analysis}
-
-% compare your results to the baseline (qualitatively and quantitatively)
+%
+We ran three models in total:
+%
+\begin{enumerate}
+    \item The baseline model, which is the standard seq2seq model.
+    \item The genre_bos model, which replaces the tag <bos> with the genre.
+    \item The concat_one_hot_word_embedding, which appends a one-hot encoding of the genre to the word embeddings that are fed into the LSTM cell. 
+\end{enumerate}
+%
+We collected perpexities on the training and validation set during the training of the models.
+%
+Also we measured the perplexity for the ground truth data, i.e. the sentences from the correspoding data sets, as well as the perplexity for the sentences that were generated during each iteration.
+%
+Below you can find visualizations of the validation error for each iteration.
+%
+\newline
+%
+TODO: Graph perp_fed \newline
+%
+TODO: Graph perp_gen \newline
+%
+In the model section we already adressed some of the problems that our ideas have. 
+%
+One problem was, that the longevity of the effect of replacing the <bos> tag with the genre would be small.
+%
+This we tried to solve by concatenating the respective word embedding with a one-hot encoding of the genre. 
+%
+However as we can see in the graphs of the perplexities, our models did not perform much better than the baseline.
+%
+We expected this from the genre_bos model, however we assumed that giving the genre information in every iteration, would have an effect on the perplexities.
+%
+From this we can conclude that either the genre of the movie, from where the dialog originated, does not have an impact on the form of the sentences, or that our implementation of the idea had a major flaw.
+%
+Since we cannot really prove that the genre does not have an impact on the sentences, we will focus this analysis on the implementation of the general idea, to build a genre aware seq2seq model.
+%
+As described in the model section we wanted to try a fourth model, where we would learn the embedding of the genre, as we would other words.
+%
+This would give the model a better representation of the genre tags, since the model will learn the embeddings in a context.
+%
+Also the embeddings of the genre tags, would only be affected by sentences of the correct genre, therefore the embedding of the genre could contain information about the structure of a dialog in that genre.
+%
+What we definitely can conclude is that adding the genre to the model, without preprocessing, will not help the performance of the model.
+%
+\newline
+%
+What we further want to discuss is the values of the perplexities on the generated words.
+%
+As we can see in the figure (TODO: Link to figure) the perplexity seems to increase with the iterations. 
+%
+Unfortunately we had technical problems after that and could not run a version for more epochs to see if the perplexity goes down again.
+%
+The only explanation we can think of that the perplexities increase, even with the baseline model, is that we are maybe overfitting to the training data.
+%
+But when looking at the training perplexities we see the same pattern. 
+%
+This does not really support the explanation of overfitting, since we would expect the training perplexities to get very small.
