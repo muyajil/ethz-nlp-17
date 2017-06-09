@@ -1,2 +1,2 @@
 dataPath=$1
-python submit.py $dataPath
+python3 submit.py $dataPath

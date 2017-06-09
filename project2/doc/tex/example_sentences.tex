@@ -1,3 +1,94 @@
 \section{Example Sentences}
+In this section we present some example sentences of the model that replaces the $<$bos$>$ tags with genre tags. Each input is answered in multiple genres. (We selected the most interesting answers.)
 
-% You might want to include sample input-output pairs to evaluate your model qualitatively, which is why the number of pages can be up to four.
+\begin{scriptsize}
+\begin{verbatim}
+INPUT           > you knew she was pregnant .
+  <ACTION>      > <person> , i ' m not sure i ' m not . <eos> . <eos> . <eos> . <eos> <eos>
+  <ADULT>       > i ' m not . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ANIMATION>   > you ' re not . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <COMEDY>      > <person> , i ' m sorry . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <FAMILY>      > you know , <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <HORROR>      > just to get me a little bit . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <MUSIC>       > no . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <MYSTERY>     > to be a lot of <unk> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ROMANCE>     > <person> , i ' m not going to get out of here . <eos> . <eos> . <eos> . <eos>
+  <SCI-FI>      > . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos>
+  <SPORT>       > you were going to be a little . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+
+INPUT           > oh , no . we ' ll never get it out now .
+  <ACTION>      > you ' re not going to be able to get the <unk> on the <unk> , <person> . <eos> <eos>
+  <ADULT>       > -- ? <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> ? <eos> ? <eos> . <eos> <eos>
+  <ANIMATION>   > <person> , i ' m sorry . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <FANTASY>     > what ' s the matter ? <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <HISTORY>     > you want to go ? <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <MUSIC>       > you can ' t be . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <MYSTERY>     > <person> , i ' m not sure . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <ROMANCE>     > you ' re a <unk> ? <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <SCI-FI>      > <person> , <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <SPORT>       > you ' re gon na be a little ? <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <THRILLER>    > <person> , i ' m sorry . i ' m sorry . <eos> . <eos> . <eos> . <eos> <eos>
+  <WAR>         > <person> , i ' m not going to be able to see you . <eos> . <eos> . <eos> <eos>
+  <WESTERN>     > <person> , i ' m sorry . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+
+
+INPUT           > eh ? it ' s a four ton truck . it ' s not as though i t ' s a <unk> fuckin a flea is it ?
+  <ACTION>      > of course it is . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ADULT>       > for a minute , i ' m not sure . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <ADVENTURE>   > ' s not in the bucks of the night . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <ANIMATION>   > <person> , i ' m sorry . i ' m sorry . <eos> . <eos> . <eos> . <eos> <eos>
+  <BIOGRAPHY>   > ' s a <unk> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <COMEDY>      > it is . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <CRIME>       > is a <unk> <unk> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <DOCUMENTARY> > i ' m not sure . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <HISTORY>     > not do . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <HORROR>      > <person> , <person> , i ' m sorry , i ' m not a <unk> . <eos> . <eos> <eos>
+  <MUSIC>       > is <person> ' s a little bit . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <MYSTERY>     > i ' m not sure . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <ROMANCE>     > on it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <SCI-FI>      > i got a lot of money . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <SHORT>       > . <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos>
+  <SPORT>       > on the way . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <WESTERN>     > i ' m sorry . i ' m sorry . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+
+\end{verbatim}
+\end{scriptsize}
+
+\newpage
+
+\begin{scriptsize}
+\begin{verbatim}
+INPUT           > do i hear fifty thousand ?
+  <ACTION>      > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ANIMATION>   > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <COMEDY>      > , <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <DOCUMENTARY> > <person> , <person> , i know , but i ' m not sure . <eos> . <eos> . <eos> <eos>
+  <FAMILY>      > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <FILM-NOIR>   > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <HISTORY>     > it was a <unk> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <MUSIC>       > <person> ' t say ' ' <unk> ' . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <MUSICAL>     > and <unk> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <MYSTERY>     > <person> , we ' re not going to be able to the <unk> . <eos> . <eos> . <eos> <eos>
+  <ROMANCE>     > . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> ? <eos> ? <eos>
+  <SCI-FI>      > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <SHORT>       > one . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <SPORT>       > . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos>
+  <THRILLER>    > <person> ' t worry about it . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+
+INPUT           > this is a test .
+  <ADULT>       > and you ' re not going to be a <unk> ? <eos> . <eos> . <eos> . <eos> . <eos>
+  <ADVENTURE>   > . <eos> . <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ANIMATION>   > <person> , <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <BIOGRAPHY>   > . ? <eos> . <person> ? <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> <eos>
+  <COMEDY>      > of the <unk> ? <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> ? <eos> ? <eos> <eos>
+  <HISTORY>     > ? <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> ? <eos> . <eos> ? <eos> ? <eos>
+  <HORROR>      > <person> <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos>
+  <MUSIC>       > you ' re not going to be a <unk> ? <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+  <MUSICAL>     > and a few days . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <MYSTERY>     > <person> ' t you ? <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos>
+  <ROMANCE>     > you ' re not . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos>
+  <SCI-FI>      > <person> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> . <eos> ? <eos> <eos>
+  <SHORT>       > is a <unk> ? <eos> . <eos> . <eos> . <eos> ? <eos> ? <eos> ? <eos> ? <eos> <eos>
+  <SPORT>       > you ' re in the bucks of a <unk> ? <eos> . <eos> . <eos> . <eos> . <eos> <eos>
+\end{verbatim}
+\end{scriptsize}

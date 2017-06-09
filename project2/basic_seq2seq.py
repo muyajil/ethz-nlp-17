@@ -82,11 +82,13 @@ class Seq2Seq(object):
             labels=tf.one_hot(self.decoder_targets, depth=self.config.vocab_size, dtype=tf.float32),
             logits=self.decoder_logits)
         self.loss = tf.reduce_mean(self.stepwise_cross_entropy)
+	# Weighted cross-entropy loss for a sequence of logits (per example -> not averaging over all examples).
         self.batch_log_perp_loss = sequence_loss_by_example(
             logits=tf.unstack(self.decoder_logits),   # list of 2D tensors (batch_size x vocab_size), len=decoder_sequence_length
             targets=tf.unstack(self.decoder_targets), # list of 1D tensors (batch_size), len=decoder_sequence_length
             weights=tf.unstack(self.weights),         # list of 1D tensors (batch_size), len=decoder_sequence_length
             average_across_timesteps=False)
+	# weighted average
         self.weighted_average_batch_log_perp_loss = tf.divide(tf.reduce_sum(self.batch_log_perp_loss), tf.reduce_sum(self.weights))
         self.perp_fed = tf.exp(self.weighted_average_batch_log_perp_loss)
         self.perp_summary_fed = tf.summary.scalar('perp_fed', self.perp_fed)

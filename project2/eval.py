@@ -8,7 +8,8 @@ from configs import bos_genres, baseline, concat_embedding, concat_one_hot_word_
 _bdir = os.path.dirname(os.path.abspath(__file__))
 
 PROMPT_PATH = os.path.join(_bdir, 'data', 'Testing_Prompts.txt')
-SESS_PATH = 'project2/models/genre_bos/chatbot.ckpt'
+SESS_PATH = 'models/genre_bos/chatbot.ckpt'
+# SESS_PATH = 'models/one_hot_concat/chatbot.ckpt'
 MODEL_TYPE = 'bos_genres'
 assert MODEL_TYPE in {'bos_genres', 'baseline', 'concat_embedding', 'concat_one_hot_word_embedding'}
 
